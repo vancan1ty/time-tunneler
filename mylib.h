@@ -47,11 +47,6 @@ typedef u16 COLOR;
 
 typedef int bool;
 
-/****************TIMER STUFF***********************/
-
-
-/**************************************************/
-
 /** these functions assume  you're in mode 3, background 2 */
 
 void vid_vsync();
