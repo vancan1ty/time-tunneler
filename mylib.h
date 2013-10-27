@@ -45,7 +45,7 @@ typedef u16 COLOR;
 #define IS_KEY_DOWN(key)  ((key) == (~(REG_KEYINPUT) & (key)))
 /***************************************************/
 
-typedef int bool;
+typedef char bool;
 
 /** these functions assume  you're in mode 3, background 2 */
 

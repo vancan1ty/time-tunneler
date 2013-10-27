@@ -25,7 +25,8 @@ HFILES = mylib.h
 
 TOOLDIR  = /usr/local/cs2110-tools
 ARMLIB   = $(TOOLDIR)/arm-thumb-eabi/lib
-CFLAGS   = -Wall -Werror -std=c99 -pedantic 
+CFLAGS   = -Wall -std=c99 -pedantic 
+TACFLAGS = -Werror
 CFLAGS   += -mthumb-interwork -mlong-calls -nostartfiles -MMD -MP -I $(TOOLDIR)/include
 LDFLAGS = -L $(TOOLDIR)/lib \
 		  -L $(TOOLDIR)/lib/gcc/arm-thumb-eabi/4.4.1/thumb \
