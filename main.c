@@ -6,7 +6,7 @@
 
 
 /******************************** PREPROCESSOR ********************************/
-#define RANDSEED	7
+#define RANDSEED	23
 #define NBLOCKSW	40
 #define NBLOCKSH	26
 #define BLOCK_W		6
@@ -30,18 +30,18 @@ typedef struct Room
 	bool bottom_intact;
 	bool left_intact;
 	bool inMaze;
+	COLOR color;
 
 } Room;
 
 Room new_Room(int row, int col) 
 {
-	Room room = {row,col,1,1,1,1,0};
+	Room room = {row,col,1,1,1,1,0,RGB(31,31,31)};
 	return room;
 }
 
 void draw_Room(Room room) 
 {
-
 	int corner_s = 1;
 	int cell_s = 4;
 
@@ -52,7 +52,7 @@ void draw_Room(Room room)
 	drawRect(room.row*BLOCK_H+corner_s+cell_s, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
 
 	//draw central cell
-	drawRect(room.row*BLOCK_H + corner_s, room.col*BLOCK_W + corner_s, cell_s, cell_s, RGB(31,31,31)); 
+	drawRect(room.row*BLOCK_H + corner_s, room.col*BLOCK_W + corner_s, cell_s, cell_s, room.color); 
 
 	//draw walls...
 	if (!room.top_intact) {
@@ -124,14 +124,15 @@ void pixelDebug(int row, int num)
 }
 
 /**************************** FORWARD DECLARATIONS ****************************/
-void drawMaze(int randseed);
+Room * calcMaze(int randseed);
 RoomVector get_open_rooms(int row, 
 		int col, 
-		Room visit_map[NBLOCKSH][NBLOCKSW]); 
+		Room * visit_map); 
 int get_next_room (Room ** rooms, 
 		int current_room_index, 
-		Room visit_map[NBLOCKSH][NBLOCKSW], 
-		Room * final_room); 
+		Room * visit_map);
+
+void drawMaze(Room * visit_map);
 /******************************************************************************/
 
 /********************************* FUNCTIONS *********************************/
@@ -143,18 +144,10 @@ int main(void)
 	REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
 
 
-	/* setPixel(40, 160, RGB(31,0,0)); */
-	/* setPixel(80, 160, RGB(0,31,0)); */
-	/* setPixel(120, 160, RGB(0,0,31)); */
-
-	/* drawRect(60, 60, 20, 40, RGB(5,5,5)); */
-
-	/* drawHollowRect(20, 200, 30, 90, RGB(31,31,31)); */
 
 	int curr_seed = RANDSEED;
-	drawMaze(curr_seed);
-
-
+	Room * visit_map = calcMaze(curr_seed);
+	drawMaze(visit_map);
 
 	while(1) {
 		bool rightPushed = 0;
@@ -173,15 +166,31 @@ int main(void)
 		REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
 		if(rightPushed) { //go to next maze!
 			curr_seed++;
-			drawMaze(curr_seed);
+			calcMaze(curr_seed);
 		} else if (leftPushed) {
 			curr_seed--; 
-			drawMaze(curr_seed);
+			calcMaze(curr_seed);
 		}
 
 	}
 
 	return 0;
+}
+
+void drawMaze(Room * visit_map) 
+{
+	for (int i = 0; i < NBLOCKSW*NBLOCKSH; i++) {
+
+		Room room = visit_map[i];
+		DEBUG_PRINTF("i: %d.  drawing room at row: %d, col: %d.\n \
+		             top_intact %d, right_intact %d, bottom_intact %d, \
+				   left_intact %d, inMaze %d, color %d\n\n",
+				   i, room.row, room.col, room.top_intact, room.right_intact,
+				   room.left_intact, room.inMaze, room.color); 
+		             
+		draw_Room(room);
+	//	vid_vsync();
+	}
 }
 
 void waitOnArrow() 
@@ -205,20 +214,17 @@ typedef struct TwoRooms
 	int next;
 } TwoRooms;
 
-void drawMaze(int randseed) 
+//returns visit_map
+Room * calcMaze(int randseed) 
 {
 	//split the screen up into four by six pixel blocks
 
-	Room visit_map[NBLOCKSH][NBLOCKSW]; 
-
+	Room * visit_map = malloc(sizeof(Room)*NBLOCKSH*NBLOCKSW); 
 
 	//go through and initialize everything to 0 
 	for (int i = 0; i < NBLOCKSH; i++) {
-
-
 		for (int i2 = 0; i2 < NBLOCKSW; i2++) {
-
-			visit_map[i][i2] = new_Room(i,i2);
+			visit_map[NBLOCKSW*i+i2] = new_Room(i,i2);
 		}
 	}
 
@@ -229,47 +235,43 @@ void drawMaze(int randseed)
 	//choose row of start and end of maze
 	int lstart = rand() % NBLOCKSH;
 	int rend = rand() % NBLOCKSH;
-	drawRect(BLOCK_H*lstart,0,BLOCK_W,BLOCK_H,RGB(0,31,0)); //green rect for start
-	drawRect(BLOCK_H*rend, (NBLOCKSW-1)*BLOCK_W, BLOCK_W,BLOCK_H, RGB(31,0,0)); //red rect for finish 
-
 
 	//i will mark entries in places as visited once I've gone there
 	int current_row = lstart;
 	int current_col = 0;
-	Room * current_room = &visit_map[current_row][current_col];
+
+	Room * current_room = &visit_map[current_row*NBLOCKSW+current_col];
 	current_room->inMaze = 1;
-	Room * prev_room = &visit_map[0][0];
+	Room * prev_room = &visit_map[0*NBLOCKSW + 0];
 	rooms[0] = current_room; 
 
 	int roomindex = 0; //indexes rooms
-	Room * final_room = &visit_map[rend][NBLOCKSW-1];
-	int bcolor = 0;
-	int db1 = 81;
-	//	pixelDebug(150,final_room->row);
+	Room * start_room = &visit_map[lstart*NBLOCKSW+0];
+	Room * final_room = &visit_map[rend*NBLOCKSW + NBLOCKSW-1];
 
 	//keep on searching till we get to the end
-	while (!((current_room->row == final_room->row) && (current_room->col == final_room->col))) { 
-		drawRect(0, 0, BLOCK_W,BLOCK_H, RGB(31,31,bcolor)); 
-		bcolor = (bcolor + 1)%31;
-		roomindex = get_next_room(rooms, roomindex, visit_map, final_room);
-
-
-		//setPixel(db1,db1,RGB(31,31,31));
-		db1++;
+	while (1) { 
+		roomindex = get_next_room(rooms, roomindex, visit_map);
+	
+		if (roomindex < 0) {
+			start_room->color = GREEN;
+			final_room->color = RED;
+//			drawRect(90, 90, BLOCK_W,BLOCK_H, RGB(0,31,0)); 
+			return visit_map;
+		}
 
 		prev_room = current_room;
 		current_room = rooms[roomindex];
 		current_room->inMaze = 1;
-	
+
+
 //		DEBUG_PRINTF("prev_room.  r: %d, c: %d\n\n", 
-//					 prev_room->row, 
-//					 prev_room->col);
+//				prev_room->row, 
+//				prev_room->col);
 //
 //		DEBUG_PRINTF("current_room.  r: %d, c: %d\n\n", 
-//					 current_room->row, 
-//					 current_room->col);
-
-
+//				current_room->row, 
+//				current_room->col);
 
 		int orientation = get_rel_orientation(*prev_room,*current_room);
 		if (orientation == ABOVE) {
@@ -289,34 +291,42 @@ void drawMaze(int randseed)
 			current_room->right_intact = 0;
 
 		} else {
+			drawRect(90, 90, BLOCK_W,BLOCK_H, YELLOW); 
 
-			setPixel(40,80,YELLOW);
-			return;
+			DEBUG_PRINTF("before failing return prev: row %d, col %d.\n \
+					top_intact %d, right_intact %d, bottom_intact %d, \
+					left_intact %d, inMaze %d, color %d\n\n",
+					prev_room->row, prev_room->col, prev_room->top_intact, 
+					prev_room->right_intact, prev_room->left_intact, 
+					prev_room->inMaze, prev_room->color); 
+
+
+			DEBUG_PRINTF("before failing return current: row %d, col %d.\n \
+					top_intact %d, right_intact %d, bottom_intact %d, \
+					left_intact %d, inMaze %d, color %d\n\n",
+					current_room->row, current_room->col, current_room->top_intact, 
+					current_room->right_intact, current_room->left_intact, 
+					current_room->inMaze, current_room->color); 
+
+			//we should never get here
+			return visit_map;
 		}
 
-		// DEBUG_PRINTF("we are here!.  direction: %d\n", orientation);
-		//  waitOnArrow();
+		//		draw_Room(*prev_room);
+		//		draw_Room(*current_room);
 
-		draw_Room(*prev_room);
-		draw_Room(*current_room);
 
-		if(roomindex<=0) {
-			drawRect(0, 0, BLOCK_W,BLOCK_H, RGB(0,0,31)); //status indicator since I can't get printf working ;)
-			break;
-		}
-
-		vid_vsync();
 	}
 
-	drawRect(BLOCK_H*rend, (NBLOCKSW-1)*BLOCK_W, BLOCK_W,BLOCK_H, RGB(31,0,0)); //red rect for finish 
-
+	//we should never get here
+	drawRect(90, 90, BLOCK_W,BLOCK_H, RGB(0,0,31)); 
+	return visit_map;
 }
 
 //returns index of next room within rooms[]
 int get_next_room(Room ** rooms, 
 		int current_room_index, 
-		Room visit_map[NBLOCKSH][NBLOCKSW], 
-		Room * final_room) 
+		Room * visit_map)
 {
 	Room * current_room = (rooms[current_room_index]);
 	int curr_row = current_room->row;
@@ -328,71 +338,36 @@ int get_next_room(Room ** rooms,
 	int numopenrooms = openRoomVec.numRooms;
 	Room ** openrooms = openRoomVec.rooms;
 
-	int final_row = final_room->row;
-	int final_col = final_room->col;
-
-	//if an adjacent room equals the final room, then just return that room!
-	for (int i=0; i < numopenrooms; i++) {
-		if (openrooms[i]->row == final_row && openrooms[i]->col == final_col) {
-
-			Room nroom = *final_room;
-			visit_map[nroom.row][nroom.col].inMaze = 1  ; //mark as visited
-			*rooms[current_room_index+1] = nroom; //pushing onto stack
-			return current_room_index+1;
-		}
-	}
-
-/*	for (int i = 0; i < numopenrooms; i++) {
-		Room riq = *openrooms[i];
-		RoomVector other_o_vec = get_open_rooms(riq.row, riq.col, visit_map);
-
-
-
-		if (other_o_vec.numRooms != 3)  { //then that is not the only adjacent cell...
-			//pixelDebug(146, other_o_vec.numRooms);
-			for (int i2 = i+1; i2 < numopenrooms; i2++) { //remove it from the list of options!
-				openrooms[i2-1] = openrooms[i2];  
-			}
-			numopenrooms--;
-			i--;
-		}
-	} */
-
-	for (int i = 0; i < openRoomVec.numRooms; i++) {
-//		DEBUG_PRINTF("this room %d: row, %d, col, %d\n\n", 
-//			i, 
-//			openRoomVec.rooms[i]->row,
-//			openRoomVec.rooms[i]->col);
-//		DEBUG_PRINTF("r1: %d, r2: %d\n\n",2,i);		
-	}
-
-
+	
 	if (numopenrooms == 0) { //we must drop back on stack, try there
+
+		free(openrooms);
 		return (current_room_index-1);
 	} else { //we will visit one of the available rooms
 		//check each room
 
 		int randn = rand() % numopenrooms;
 		Room * nroom = openrooms[randn];
-		visit_map[nroom->row][nroom->col].inMaze = 1; //mark as visited
-		rooms[current_room_index+1] = nroom; //pushing onto stack
+		visit_map[(nroom->row)*NBLOCKSW+nroom->col].inMaze = 1; //mark as visited
+		rooms[current_room_index+1] = &visit_map[(nroom->row)*NBLOCKSW+nroom->col]; //pushing onto stack
 
 
 //		DEBUG_PRINTF("nroom before next_return.  row, %d, col, %d\n\n", 
-//				     nroom->row,
-//					 nroom->col);
+//				nroom->row,
+//				nroom->col);
 //
 //		DEBUG_PRINTF("before next_return.  row, %d, col, %d\n\n", 
-//				     rooms[current_room_index+1]->row,
-//					 rooms[current_room_index+1]->col);
+//				rooms[current_room_index+1]->row,
+//				rooms[current_room_index+1]->col);
 
+		free(openrooms);
 		return current_room_index+1;
 	}
 
 }
 
 //gets open rooms w.r.t. room at row, col.
-RoomVector get_open_rooms(int row, int col, Room visit_map[NBLOCKSH][NBLOCKSW])
+RoomVector get_open_rooms(int row, int col, Room visit_map[NBLOCKSH*NBLOCKSW])
 {
 
 	RoomVector openRoomVec;
@@ -401,32 +376,39 @@ RoomVector get_open_rooms(int row, int col, Room visit_map[NBLOCKSH][NBLOCKSW])
 	int numopenrooms = 0;
 
 	//add all available rooms to this list. if no rooms available, drop back on stack
-	if ((row > 0) && (visit_map[row-1][col].inMaze == 0)) { //then we can go up
-		openrooms[numopenrooms] = &visit_map[row-1][col];
+	if ((row > 0) && (visit_map[(row-1)*NBLOCKSW+col].inMaze == 0)) { //then we can go up
+		openrooms[numopenrooms] = &visit_map[NBLOCKSW*(row-1)+col];
 		numopenrooms++;
 	}
 
-	if (col < NBLOCKSW-1 && visit_map[row][col+1].inMaze == 0) { //then we can go right
-		openrooms[numopenrooms] = &visit_map[row][col+1];
+	if (col < NBLOCKSW-1 && visit_map[NBLOCKSW*row+col+1].inMaze == 0) { //then we can go right
+		openrooms[numopenrooms] = &visit_map[NBLOCKSW*row+col+1];
 		numopenrooms++;
 	}
 
-	if (row < NBLOCKSH-1 && visit_map[row+1][col].inMaze == 0) { //then we can go down 
-		openrooms[numopenrooms] = &visit_map[row+1][col];
+	if (row < NBLOCKSH-1 && visit_map[NBLOCKSW*(row+1)+col].inMaze == 0) { //then we can go down 
+		openrooms[numopenrooms] = &visit_map[NBLOCKSW*(row+1)+col];
 		numopenrooms++;
 	}
 
-	if (col > 0 && visit_map[row][col-1].inMaze == 0) { //then we can go left 
-		openrooms[numopenrooms] = &visit_map[row][col-1];
+	if (col > 0 && visit_map[NBLOCKSW*row+col-1].inMaze == 0) { //then we can go left 
+		openrooms[numopenrooms] = &visit_map[NBLOCKSW*row+col-1];
 		numopenrooms++;
 	}
+
+//	for (int i = 0; i < numopenrooms; i++) {
+//		if (openrooms[i]->row > 50) {
+//			DEBUG_PRINT("error, error, error!\n\n");
+//		}
+//		waitOnArrow();
+//	}
 
 
 	openRoomVec.rooms = openrooms;
 	openRoomVec.numRooms = numopenrooms;
 
 	for (int i = 0; i < openRoomVec.numRooms; i++) {
-/*		DEBUG_PRINTF("room %d adjacent to row %d, col %d.  :row, %d, col, %d\n\n", 
+		/*		DEBUG_PRINTF("room %d adjacent to row %d, col %d.  :row, %d, col, %d\n\n", 
 				i,
 				row,
 				col,
