@@ -3,21 +3,16 @@
 #include <stdio.h>
 #include <assert.h>
 #include "mylib.h"
+#include "splash.h"
+#include "splashnotext.h"
 
 
 /******************************** PREPROCESSOR ********************************/
-#define RANDSEED	23
-#define NBLOCKSW	40
-#define NBLOCKSH	26
-#define BLOCK_W		6
-#define BLOCK_H		6
-#define RED             RGB(31,0,0)
-#define GREEN           RGB(0,31,0)
-#define BLUE            RGB(0,0,31)
-#define WHITE           RGB(31,31,31)
-#define BLACK           RGB(0,0,0)
-#define YELLOW			RGB(31,31,0)
-
+#define RANDSEED     	23
+#define BLOCK_W		8
+#define BLOCK_H		8
+#define NBLOCKSW		SCREEN_WIDTH/BLOCK_W
+#define NBLOCKSH		SCREEN_HEIGHT/BLOCK_H
 /******************************************************************************/
 
 /*********************************** STRUCT ***********************************/
@@ -43,14 +38,15 @@ Room new_Room(int row, int col)
 void draw_Room(Room room) 
 {
 	int corner_s = 1;
-	int cell_s = 4;
+	int cell_s = 6;
 
-	//draw corners black
-	drawRect(room.row*BLOCK_H, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
-	drawRect(room.row*BLOCK_H+corner_s+ cell_s, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
-	drawRect(room.row*BLOCK_H, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
-	drawRect(room.row*BLOCK_H+corner_s+cell_s, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
-
+// have this commented out for now!
+//	//draw corners black
+//	drawRect(room.row*BLOCK_H, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
+//	drawRect(room.row*BLOCK_H+corner_s+ cell_s, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
+//	drawRect(room.row*BLOCK_H, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
+//	drawRect(room.row*BLOCK_H+corner_s+cell_s, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
+//
 	//draw central cell
 	drawRect(room.row*BLOCK_H + corner_s, room.col*BLOCK_W + corner_s, cell_s, cell_s, room.color); 
 
@@ -69,6 +65,12 @@ void draw_Room(Room room)
 	}
 
 }
+
+typedef struct TwoRooms 
+{
+	int cur;
+	int next;
+} TwoRooms;
 
 enum Direction {ABOVE, RIGHT, BELOW, LEFT};
 
@@ -98,31 +100,13 @@ int get_rel_orientation(Room r1, Room r2)
 	return -1;
 }
 
-typedef struct RoomVector {
+typedef struct RoomVector 
+{
 	Room ** rooms; 
 	int numRooms;
 } RoomVector;
 
 /******************************************************************************/
-
-void pixelDebug(int row, int num) 
-{
-	int output_col = 0;
-	int bits[32];
-	int mask =0x1;
-	for (int i = 0; i < 32; i++) {
-		bits[31 - i] = (mask<<i == (num & (mask<<i))); //((num) & (mask<<i));
-	}
-
-	for (int i = 0; i < 32; i++) {
-		if (bits[i] == 1) {
-			setPixel(row, output_col+2*i,WHITE);
-		} else {
-			setPixel(row, output_col+2*i,RGB(5,5,5));
-		}
-	}
-}
-
 /**************************** FORWARD DECLARATIONS ****************************/
 Room * calcMaze(int randseed);
 RoomVector get_open_rooms(int row, 
@@ -136,8 +120,17 @@ void drawMaze(Room * visit_map);
 /******************************************************************************/
 
 /********************************* FUNCTIONS *********************************/
+void displaySplashScreen(const unsigned short image[38400])
+{	
+	DMA[3].src = image;
+	DMA[3].dst = videoBuffer;
+	DMA[3].cnt = (240*160) | DMA_ENABLE;
+}
+
 int main(void) 
 {
+
+	displaySplashScreen(splash);
 	DEBUG_PRINT("hi there\n"); //this does not work...
 	//DEBUG_PRINTF("%s\n\n", "hi no 2."); //this does not work...
 
@@ -147,6 +140,9 @@ int main(void)
 
 	int curr_seed = RANDSEED;
 	Room * visit_map = calcMaze(curr_seed);
+
+	while(!KEY_DOWN_NOW(KEY_START));
+	displaySplashScreen(splashnotext);
 	drawMaze(visit_map);
 
 	while(1) {
@@ -154,8 +150,8 @@ int main(void)
 		bool leftPushed = 0;
 		bool hasInput = 0;
 		while(!hasInput){ 
-			rightPushed = IS_KEY_DOWN(KEY_RIGHT); 
-			leftPushed = IS_KEY_DOWN(KEY_LEFT);
+			rightPushed = KEY_DOWN_NOW(KEY_RIGHT); 
+			leftPushed = KEY_DOWN_NOW(KEY_LEFT);
 			if (rightPushed || leftPushed) {
 				hasInput=1; //break out of loop, do action
 			}
@@ -171,7 +167,6 @@ int main(void)
 			curr_seed--; 
 			calcMaze(curr_seed);
 		}
-
 	}
 
 	return 0;
@@ -183,13 +178,13 @@ void drawMaze(Room * visit_map)
 
 		Room room = visit_map[i];
 		DEBUG_PRINTF("i: %d.  drawing room at row: %d, col: %d.\n \
-		             top_intact %d, right_intact %d, bottom_intact %d, \
-				   left_intact %d, inMaze %d, color %d\n\n",
-				   i, room.row, room.col, room.top_intact, room.right_intact,
-				   room.left_intact, room.inMaze, room.color); 
-		             
+				top_intact %d, right_intact %d, bottom_intact %d, \
+				left_intact %d, inMaze %d, color %d\n\n",
+				i, room.row, room.col, room.top_intact, room.right_intact,
+				room.left_intact, room.inMaze, room.color); 
+
 		draw_Room(room);
-	//	vid_vsync();
+		//	vid_vsync();
 	}
 }
 
@@ -199,20 +194,14 @@ void waitOnArrow()
 	bool leftPushed = 0;
 	bool hasInput = 0;
 	while(!hasInput){ 
-		rightPushed = IS_KEY_DOWN(KEY_RIGHT); 
-		leftPushed = IS_KEY_DOWN(KEY_LEFT);
+		rightPushed = KEY_DOWN_NOW(KEY_RIGHT); 
+		leftPushed = KEY_DOWN_NOW(KEY_LEFT);
 		if (rightPushed || leftPushed) {
 			hasInput=1; //break out of loop, do action
 		}
 	} 
 
 }
-
-typedef struct TwoRooms 
-{
-	int cur;
-	int next;
-} TwoRooms;
 
 //returns visit_map
 Room * calcMaze(int randseed) 
@@ -252,11 +241,11 @@ Room * calcMaze(int randseed)
 	//keep on searching till we get to the end
 	while (1) { 
 		roomindex = get_next_room(rooms, roomindex, visit_map);
-	
+
 		if (roomindex < 0) {
 			start_room->color = GREEN;
 			final_room->color = RED;
-//			drawRect(90, 90, BLOCK_W,BLOCK_H, RGB(0,31,0)); 
+			//			drawRect(90, 90, BLOCK_W,BLOCK_H, RGB(0,31,0)); 
 			return visit_map;
 		}
 
@@ -265,13 +254,13 @@ Room * calcMaze(int randseed)
 		current_room->inMaze = 1;
 
 
-//		DEBUG_PRINTF("prev_room.  r: %d, c: %d\n\n", 
-//				prev_room->row, 
-//				prev_room->col);
-//
-//		DEBUG_PRINTF("current_room.  r: %d, c: %d\n\n", 
-//				current_room->row, 
-//				current_room->col);
+		//		DEBUG_PRINTF("prev_room.  r: %d, c: %d\n\n", 
+		//				prev_room->row, 
+		//				prev_room->col);
+		//
+		//		DEBUG_PRINTF("current_room.  r: %d, c: %d\n\n", 
+		//				current_room->row, 
+		//				current_room->col);
 
 		int orientation = get_rel_orientation(*prev_room,*current_room);
 		if (orientation == ABOVE) {
@@ -338,7 +327,7 @@ int get_next_room(Room ** rooms,
 	int numopenrooms = openRoomVec.numRooms;
 	Room ** openrooms = openRoomVec.rooms;
 
-	
+
 	if (numopenrooms == 0) { //we must drop back on stack, try there
 
 		free(openrooms);
@@ -352,13 +341,13 @@ int get_next_room(Room ** rooms,
 		rooms[current_room_index+1] = &visit_map[(nroom->row)*NBLOCKSW+nroom->col]; //pushing onto stack
 
 
-//		DEBUG_PRINTF("nroom before next_return.  row, %d, col, %d\n\n", 
-//				nroom->row,
-//				nroom->col);
-//
-//		DEBUG_PRINTF("before next_return.  row, %d, col, %d\n\n", 
-//				rooms[current_room_index+1]->row,
-//				rooms[current_room_index+1]->col);
+		//		DEBUG_PRINTF("nroom before next_return.  row, %d, col, %d\n\n", 
+		//				nroom->row,
+		//				nroom->col);
+		//
+		//		DEBUG_PRINTF("before next_return.  row, %d, col, %d\n\n", 
+		//				rooms[current_room_index+1]->row,
+		//				rooms[current_room_index+1]->col);
 
 		free(openrooms);
 		return current_room_index+1;
@@ -396,12 +385,12 @@ RoomVector get_open_rooms(int row, int col, Room visit_map[NBLOCKSH*NBLOCKSW])
 		numopenrooms++;
 	}
 
-//	for (int i = 0; i < numopenrooms; i++) {
-//		if (openrooms[i]->row > 50) {
-//			DEBUG_PRINT("error, error, error!\n\n");
-//		}
-//		waitOnArrow();
-//	}
+	//	for (int i = 0; i < numopenrooms; i++) {
+	//		if (openrooms[i]->row > 50) {
+	//			DEBUG_PRINT("error, error, error!\n\n");
+	//		}
+	//		waitOnArrow();
+	//	}
 
 
 	openRoomVec.rooms = openrooms;

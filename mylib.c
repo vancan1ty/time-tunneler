@@ -52,3 +52,23 @@ void drawHollowRect(int r, int c, int width, int height, COLOR color) {
 void clearScreen() {
 	drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, RGB(0,0,0));
 }
+
+/***************************** DEBUGGING *****************************/
+void pixelDebug(int row, int num) 
+{
+	int output_col = 0;
+	int bits[32];
+	int mask =0x1;
+	for (int i = 0; i < 32; i++) {
+		bits[31 - i] = (mask<<i == (num & (mask<<i))); //((num) & (mask<<i));
+	}
+
+	for (int i = 0; i < 32; i++) {
+		if (bits[i] == 1) {
+			setPixel(row, output_col+2*i,WHITE);
+		} else {
+			setPixel(row, output_col+2*i,RGB(5,5,5));
+		}
+	}
+}
+/*********************************************************************/
