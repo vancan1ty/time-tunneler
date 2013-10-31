@@ -11,8 +11,10 @@
 #define RANDSEED     	23
 #define BLOCK_W		8
 #define BLOCK_H		8
-#define NBLOCKSW		SCREEN_WIDTH/BLOCK_W
-#define NBLOCKSH		SCREEN_HEIGHT/BLOCK_H
+#define NBLOCKSW        SCREEN_WIDTH/BLOCK_W
+#define NBLOCKSH	SCREEN_HEIGHT/BLOCK_H
+#define CORNER_S        1
+#define CELL_S          6
 /******************************************************************************/
 
 /*********************************** STRUCT ***********************************/
@@ -35,35 +37,99 @@ Room new_Room(int row, int col)
 	return room;
 }
 
+int * wallbitset; //= (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
+//bitset keeping track of whether a pixel is in a wall or not.
+//a little tricky to access values, etc.  requires a mask.
+
+bool isOccupied(int ypos, int xpos) 
+{
+	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
+	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
+	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
+	bool out = (mask == (mask & wallbitset[intindex] ));
+	return out;
+}
+
+void setOccupied(int ypos, int xpos)
+{
+	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
+	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
+	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
+	wallbitset[intindex] = mask | wallbitset[intindex];
+}
+
+void setRectOccupied(int r, int c, int width, int height) {
+	for (int i=r; i < r+height; i++) {
+		for (int i2=c; i2 < c+width; i2++) {
+			setOccupied(i,i2);
+		}
+	}
+}
+
+
+bool isLegalPosition(int ypos, int xpos, int height, int width)
+{
+	//check four corners.
+	if (isOccupied(ypos, xpos) || isOccupied(ypos+height-1,xpos) ||
+			isOccupied(ypos, xpos+width-1) || isOccupied(ypos+height-1,xpos+width-1)) {
+		DEBUG_PRINTF("the 4: %d %d %d %d\n\n", isOccupied(ypos, xpos), isOccupied(ypos+height-1,xpos), isOccupied(ypos, xpos+width-1), isOccupied(ypos+height-1,xpos+width-1));
+		return 0;
+	}
+
+	//otherwise
+	return 1;
+}
+
 void draw_Room(Room room) 
 {
-	int corner_s = 1;
-	int cell_s = 6;
+	//draw corners black (currently off...).  
+	//set wall bitset.
 
-// have this commented out for now!
-//	//draw corners black
-//	drawRect(room.row*BLOCK_H, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
-//	drawRect(room.row*BLOCK_H+corner_s+ cell_s, room.col*BLOCK_W, corner_s, corner_s, BLACK); 
-//	drawRect(room.row*BLOCK_H, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
-//	drawRect(room.row*BLOCK_H+corner_s+cell_s, room.col*BLOCK_W+corner_s+cell_s, corner_s, corner_s, BLACK); 
-//
+	setRectOccupied(room.row*BLOCK_H,room.col*BLOCK_W,CORNER_S,CORNER_S); 
+//	setOccupied(room.row*BLOCK_H,room.col*BLOCK_W);
+		//drawRect(room.row*BLOCK_H, room.col*BLOCK_W, CORNER_S, CORNER_S, BLACK); 
+
+	setRectOccupied(room.row*BLOCK_H + CORNER_S + CELL_S, room.col*BLOCK_W, CORNER_S, CORNER_S);		
+	//	drawRect(room.row*BLOCK_H+CORNER_S+ CELL_S, room.col*BLOCK_W, CORNER_S, CORNER_S, BLACK); 
+
+
+	setRectOccupied(room.row*BLOCK_H,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
+	//	drawRect(room.row*BLOCK_H, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S, BLACK); 
+
+	setRectOccupied(room.row*BLOCK_H+CORNER_S+CELL_S,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
+	//	drawRect(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S, BLACK); 
+
 	//draw central cell
-	drawRect(room.row*BLOCK_H + corner_s, room.col*BLOCK_W + corner_s, cell_s, cell_s, room.color); 
+	drawRect(room.row*BLOCK_H + CORNER_S, room.col*BLOCK_W + CORNER_S, CELL_S, CELL_S, room.color); 
 
 	//draw walls...
 	if (!room.top_intact) {
-		drawRect(room.row*BLOCK_H, room.col*BLOCK_W + corner_s, cell_s, corner_s, WHITE); 
+
+		drawRect(room.row*BLOCK_H, room.col*BLOCK_W + CORNER_S, CELL_S, CORNER_S, WHITE); 
+	} else {
+		setRectOccupied(room.row*BLOCK_H, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
 	}
 	if (!room.right_intact) {
-		drawRect(room.row*BLOCK_H+corner_s, room.col*BLOCK_W + corner_s + cell_s, corner_s, cell_s, WHITE); 
-	}
-	if (!room.bottom_intact) {
-		drawRect(room.row*BLOCK_H+corner_s+cell_s, room.col*BLOCK_W + corner_s, cell_s, corner_s, WHITE); 
-	}
-	if (!room.left_intact) {
-		drawRect(room.row*BLOCK_H+corner_s, room.col*BLOCK_W, corner_s, cell_s, WHITE); 
+
+		drawRect(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CELL_S, WHITE); 
+	} else {
+		setRectOccupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CELL_S);		
 	}
 
+	if (!room.bottom_intact) {
+
+		drawRect(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S, WHITE); 
+	} else {
+
+		setRectOccupied(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
+	}
+	if (!room.left_intact) {
+
+		drawRect(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W, CORNER_S, CELL_S, WHITE); 
+	} else {
+
+		setRectOccupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W, CORNER_S, CELL_S);		
+	}
 }
 
 typedef struct TwoRooms 
@@ -117,6 +183,7 @@ int get_next_room (Room ** rooms,
 		Room * visit_map);
 
 void drawMaze(Room * visit_map);
+void drawProtagonist(int prevrowp, int prevcolp, int rowp, int colp);
 /******************************************************************************/
 
 /********************************* FUNCTIONS *********************************/
@@ -127,16 +194,130 @@ void displaySplashScreen(const unsigned short image[38400])
 	DMA[3].cnt = (240*160) | DMA_ENABLE;
 }
 
+void test() 
+{
+	bool found = 0;
+
+	setOccupied(159,239);
+	for (int r = 0; r < SCREEN_HEIGHT; r++)  {
+		for (int c = 0; c < SCREEN_WIDTH; c++) {
+			if (isOccupied(r,c)) {
+				DEBUG_PRINTF("failing at %d, %d \n\n",r,c);
+				found = 1;
+			}
+		}
+	}
+
+	if (found == 0) {
+		DEBUG_PRINT("none occupied!\n\n");
+	}
+
+
+}
+
+typedef struct
+{
+	int dx;
+	int dy;
+} dxdy;
+
+
+
+int cycles_top_held = 0;
+int cycles_right_held = 0;
+int cycles_bottom_held = 0;
+int cycles_left_held = 0;
+
+void clear_holds() {
+	cycles_top_held = 0;
+	cycles_right_held = 0;
+	cycles_bottom_held = 0;
+	cycles_left_held = 0;
+}
+
+dxdy getReqdChange() {
+		key_poll();
+		int dx = 0;
+		int dy = 0;
+
+		bool hit = 0;
+		if (key_hit(KEY_UP)) {
+			dy += -2;	
+			hit = 1;
+		} 
+		if (key_hit(KEY_RIGHT)) {
+			dx += 2;	
+			hit = 1;
+		} 
+		if (key_hit(KEY_DOWN)) {
+			dy += 2;		
+			hit = 1;
+		} 
+		if (key_hit(KEY_LEFT)) {
+			dx += -2;
+			hit = 1;
+		}
+
+		if (hit == 1) {
+			clear_holds();
+			dxdy out = {dx, dy};
+			return out;
+		}
+
+			
+		if (key_is_down(KEY_UP)) {
+			cycles_top_held++;		
+		} else {
+			cycles_top_held=0;		
+		}
+		if (key_is_down(KEY_RIGHT)) {
+			cycles_right_held++;		
+		} else {
+			cycles_right_held=0;		
+		}
+		if (key_is_down(KEY_DOWN)) {
+			cycles_bottom_held++;		
+		} else {
+			cycles_bottom_held=0;		
+		}
+		if (key_is_down(KEY_LEFT)) {
+			cycles_left_held++;		
+		} else {
+			cycles_left_held=0;		
+		}
+
+		if (cycles_top_held > 6) {
+			cycles_top_held++;		
+			dy = -1;	
+		} 
+		if (cycles_right_held > 6) {
+			cycles_right_held++;		
+			dx = 1;	
+		} 
+		if (cycles_bottom_held > 6) {
+			cycles_bottom_held++;		
+			dy = 1;		
+		} 
+		if (cycles_left_held > 6) {
+			cycles_left_held++;		
+			dx = -1;
+		}
+
+
+		dxdy out = {dx, dy};
+		return out;
+
+
+}
+
 int main(void) 
 {
-
+	wallbitset = (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
+	DEBUG_PRINTF("sizeof DMA_CONTROLLER: %d \n\n", sizeof(DMA_CONTROLLER));
 	displaySplashScreen(splash);
-	DEBUG_PRINT("hi there\n"); //this does not work...
-	//DEBUG_PRINTF("%s\n\n", "hi no 2."); //this does not work...
 
 	REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
-
-
+	//test();
 
 	int curr_seed = RANDSEED;
 	Room * visit_map = calcMaze(curr_seed);
@@ -145,31 +326,65 @@ int main(void)
 	displaySplashScreen(splashnotext);
 	drawMaze(visit_map);
 
-	while(1) {
-		bool rightPushed = 0;
-		bool leftPushed = 0;
-		bool hasInput = 0;
-		while(!hasInput){ 
-			rightPushed = KEY_DOWN_NOW(KEY_RIGHT); 
-			leftPushed = KEY_DOWN_NOW(KEY_LEFT);
-			if (rightPushed || leftPushed) {
-				hasInput=1; //break out of loop, do action
-			}
-		} 
+	int xpos = 1;
+	int ypos = 1;
+	drawProtagonist(1,1,ypos,xpos);
 
-		clearScreen();
-
-		REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
-		if(rightPushed) { //go to next maze!
-			curr_seed++;
-			calcMaze(curr_seed);
-		} else if (leftPushed) {
-			curr_seed--; 
-			calcMaze(curr_seed);
+	for (int r = 0; r < 3; r++) {
+		for (int c = 0; c < 240; c++) {
+			DEBUG_PRINTF("is occupied r: %d, c: %d? %d\n", r, c, isOccupied(r,c));	
 		}
 	}
 
+	while(1) {
+//		key_poll();
+//		int dx = 0;
+//		int dy = 0;
+//
+//		if (key_hit(KEY_UP)) {
+//			dy = -1;	
+//		} else if (key_hit(KEY_RIGHT)) {
+//			dx = 1;	
+//		} else if (key_hit(KEY_DOWN)) {
+//			dy = 1;		
+//		} else if (key_hit(KEY_LEFT)) {
+//			dx = -1;
+//		}
+//
+//
+//		if (key_is_down(KEY_UP)) {
+//			dy = -1;	
+//		} else if (key_is_down(KEY_RIGHT)) {
+//			dx = 1;	
+//		} else if (key_is_down(KEY_DOWN)) {
+//			dy = 1;		
+//		} else if (key_is_down(KEY_LEFT)) {
+//			dx = -1;
+//		}
+	
+		dxdy nxtreqs = getReqdChange();
+		int dx = nxtreqs.dx;
+		int dy = nxtreqs.dy;
+
+		if ((dx != 0) || (dy != 0)) {
+			if (isLegalPosition(ypos+dy,xpos+dx,4,4)) {
+				drawProtagonist(ypos,xpos,ypos+dy,xpos+dx);
+				ypos += dy;
+				xpos += dx;
+			} else {
+				DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
+			}
+		}
+		vid_vsync();
+	}
+
 	return 0;
+}
+
+void drawProtagonist(int prevrowp, int prevcolp, int rowp, int colp) 
+{
+	drawRect(prevrowp, prevcolp, 4, 4, WHITE);
+	drawRect(rowp, colp, 4, 4, RGB(0,0,20));
 }
 
 void drawMaze(Room * visit_map) 
@@ -177,11 +392,11 @@ void drawMaze(Room * visit_map)
 	for (int i = 0; i < NBLOCKSW*NBLOCKSH; i++) {
 
 		Room room = visit_map[i];
-		DEBUG_PRINTF("i: %d.  drawing room at row: %d, col: %d.\n \
-				top_intact %d, right_intact %d, bottom_intact %d, \
-				left_intact %d, inMaze %d, color %d\n\n",
-				i, room.row, room.col, room.top_intact, room.right_intact,
-				room.left_intact, room.inMaze, room.color); 
+//		DEBUG_PRINTF("i: %d.  drawing room at row: %d, col: %d.\n \
+//				top_intact %d, right_intact %d, bottom_intact %d, \
+//				left_intact %d, inMaze %d, color %d\n\n",
+//				i, room.row, room.col, room.top_intact, room.right_intact,
+//				room.left_intact, room.inMaze, room.color); 
 
 		draw_Room(room);
 		//	vid_vsync();
@@ -282,21 +497,21 @@ Room * calcMaze(int randseed)
 		} else {
 			drawRect(90, 90, BLOCK_W,BLOCK_H, YELLOW); 
 
-			DEBUG_PRINTF("before failing return prev: row %d, col %d.\n \
-					top_intact %d, right_intact %d, bottom_intact %d, \
-					left_intact %d, inMaze %d, color %d\n\n",
-					prev_room->row, prev_room->col, prev_room->top_intact, 
-					prev_room->right_intact, prev_room->left_intact, 
-					prev_room->inMaze, prev_room->color); 
-
-
-			DEBUG_PRINTF("before failing return current: row %d, col %d.\n \
-					top_intact %d, right_intact %d, bottom_intact %d, \
-					left_intact %d, inMaze %d, color %d\n\n",
-					current_room->row, current_room->col, current_room->top_intact, 
-					current_room->right_intact, current_room->left_intact, 
-					current_room->inMaze, current_room->color); 
-
+//			DEBUG_PRINTF("before failing return prev: row %d, col %d.\n \
+//					top_intact %d, right_intact %d, bottom_intact %d, \
+//					left_intact %d, inMaze %d, color %d\n\n",
+//					prev_room->row, prev_room->col, prev_room->top_intact, 
+//					prev_room->right_intact, prev_room->left_intact, 
+//					prev_room->inMaze, prev_room->color); 
+//
+//
+//			DEBUG_PRINTF("before failing return current: row %d, col %d.\n \
+//					top_intact %d, right_intact %d, bottom_intact %d, \
+//					left_intact %d, inMaze %d, color %d\n\n",
+//					current_room->row, current_room->col, current_room->top_intact, 
+//					current_room->right_intact, current_room->left_intact, 
+//					current_room->inMaze, current_room->color); 
+//
 			//we should never get here
 			return visit_map;
 		}

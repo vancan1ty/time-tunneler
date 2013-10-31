@@ -13,8 +13,6 @@ typedef unsigned int u32;
 extern u16 * videoBuffer; 
 /************************************************/
 
-/****************** BUTTON HANDLING *******************/
-
 /****************MEMORY MAPPINGS...**************/
 #define MEM_IO      	0x04000000
 #define MEM_VRAM    	0x06000000
@@ -109,9 +107,9 @@ INLINE u32 key_released(u32 key)
 #define DMA_DESTINATION_RESET     (3 << 0x15) //increment during transfer, then reset?
 
 //below same as above, but for source
-#define DMA_SOURCE_INCREMNT       (0 << 0x17) 
+#define DMA_SOURCE_INCREMENT      (0 << 0x17) 
 #define DMA_SOURCE_DECREMENT      (1 << 0x17) 
-#define DMA_DEST_FIXED            (2 << 0x17) 
+#define DMA_SOURCE_FIXED          (2 << 0x17) 
 //^no reset for source...
 
 #define DMA_REPEAT                (1 << 0x19)
@@ -129,6 +127,7 @@ INLINE u32 key_released(u32 key)
 
 #define DMA_BASEADDR              0x40000B0;
 
+
 //struct DMA_CONTROLLER 
 //{
 //	const volatile u32 source_address;
@@ -145,6 +144,16 @@ typedef struct
 } DMA_CONTROLLER;
 
 #define DMA ((volatile DMA_CONTROLLER *) 0x040000B0)
+
+/* general dma transfer function.*/
+INLINE void dma_transfer(int channel, void * src, void * dst, u32 cnt) 
+{
+        DMA[channel].cnt = 0;
+        DMA[channel].src = src;
+        DMA[channel].dst = dst;
+	DMA[channel].cnt = cnt;		
+}
+
 
 /************************************************************/
 

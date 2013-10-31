@@ -1,9 +1,13 @@
 /* Currell Berry.  CS 2110.  GBA utility functions etc...*/
 #include<stdio.h>
+#include<string.h>
 #include "mylib.h"
+
 
 #define REG_VCOUNT *(volatile u16*)0x04000006
 u16 * videoBuffer = (u16*) 0x6000000;
+u16 __key_prev;
+u16 __key_curr;
 
 
 
@@ -22,12 +26,25 @@ void setPixel(int r, int c, COLOR color) {
 
 //r and c represent the top and left corners of the rectangle, respectively
 void drawRect(int r, int c, int width, int height, COLOR color) {
+
+//	DMA[3].cnt = 0;
+//
+//	while (height--) {
+//		DMA[3].src = &color;
+//		DMA[3].dst = videoBuffer + (r+height)*240 + c;
+//		DMA[3].cnt = (width) | DMA_ENABLE | DMA_SOURCE_FIXED;
+//
+//	}
+//
 	for (int i=r; i < r+height; i++) {
 		for (int i2=c; i2 < c+width; i2++) {
-			setPixel(i,i2,color);		
+			setPixel(i,i2,color);
 		}
 	}
 }
+
+
+
 void drawHollowRect(int r, int c, int width, int height, COLOR color) {
 	//draw clockwise starting from top left corner
 	int rightcol = c+width;
@@ -50,7 +67,10 @@ void drawHollowRect(int r, int c, int width, int height, COLOR color) {
 	}
 }
 void clearScreen() {
-	drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, RGB(0,0,0));
+	u16 black = BLACK;
+        DMA[3].src = &black;
+        DMA[3].dst = videoBuffer;
+        DMA[3].cnt = (240*160) | DMA_ENABLE | DMA_SOURCE_FIXED;
 }
 
 /***************************** DEBUGGING *****************************/
