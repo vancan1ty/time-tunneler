@@ -69,13 +69,17 @@ void setRectOccupied(int r, int c, int width, int height) {
 
 bool isLegalPosition(int ypos, int xpos, int height, int width)
 {
-	//check four corners.
+	//check four corners, and every other pixel along sides
+	//will have to change this if I expand characters
 	if (isOccupied(ypos, xpos) || isOccupied(ypos+height-1,xpos) ||
-			isOccupied(ypos, xpos+width-1) || isOccupied(ypos+height-1,xpos+width-1)) {
+		isOccupied(ypos, xpos+width-1) || isOccupied(ypos+height-1,xpos+width-1)
+		|| isOccupied(ypos,xpos+1) || isOccupied(ypos+height-1, xpos+1) ||
+		isOccupied(ypos+1,xpos) || isOccupied(ypos+1, xpos+width-1)
+			) {
 		DEBUG_PRINTF("the 4: %d %d %d %d\n\n", isOccupied(ypos, xpos), isOccupied(ypos+height-1,xpos), isOccupied(ypos, xpos+width-1), isOccupied(ypos+height-1,xpos+width-1));
 		return 0;
 	}
-
+	
 	//otherwise
 	return 1;
 }
@@ -337,31 +341,7 @@ int main(void)
 	}
 
 	while(1) {
-//		key_poll();
-//		int dx = 0;
-//		int dy = 0;
-//
-//		if (key_hit(KEY_UP)) {
-//			dy = -1;	
-//		} else if (key_hit(KEY_RIGHT)) {
-//			dx = 1;	
-//		} else if (key_hit(KEY_DOWN)) {
-//			dy = 1;		
-//		} else if (key_hit(KEY_LEFT)) {
-//			dx = -1;
-//		}
-//
-//
-//		if (key_is_down(KEY_UP)) {
-//			dy = -1;	
-//		} else if (key_is_down(KEY_RIGHT)) {
-//			dx = 1;	
-//		} else if (key_is_down(KEY_DOWN)) {
-//			dy = 1;		
-//		} else if (key_is_down(KEY_LEFT)) {
-//			dx = -1;
-//		}
-	
+
 		dxdy nxtreqs = getReqdChange();
 		int dx = nxtreqs.dx;
 		int dy = nxtreqs.dy;
@@ -371,6 +351,14 @@ int main(void)
 				drawProtagonist(ypos,xpos,ypos+dy,xpos+dx);
 				ypos += dy;
 				xpos += dx;
+			} else if (isLegalPosition(ypos, xpos+dx, 4, 4)) {
+				//then just move in x direction		
+				drawProtagonist(ypos,xpos,ypos,xpos+dx);
+				xpos += dx;
+			} else if (isLegalPosition(ypos+dy, xpos, 4, 4)) {
+				//then just move in x direction		
+				drawProtagonist(ypos,xpos,ypos+dy,xpos);
+				ypos += dy;
 			} else {
 				DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
 			}
