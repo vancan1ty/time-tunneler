@@ -6,6 +6,26 @@
 #include "splash.h"
 #include "splashnotext.h"
 
+//////////////////////////////////QUICK RANDOM NUMBER GENERATOR
+int __qran_seed=42;
+//set seed
+int sqran(int seed)
+{
+	int old = __qran_seed;	
+	__qran_seed = seed;
+	return old;
+}
+INLINE int rand_range(int min, int max)
+{return (rand()*(max-min)>>15)+min; }
+
+//quick random number generator
+INLINE int qran()
+{
+	__qran_seed = 1664525*__qran_seed+1013904223;
+	return (__qran_seed>>16) & 0x7FFF;
+}
+
+
 //////////////////////////////////**PREPROCESSOR
 #define RANDSEED     	23
 #define BLOCK_W	        8
@@ -247,7 +267,8 @@ BadGuy new_BadGuy(int ypos, int xpos)
 	BadGuy b = {xpos,ypos,xpos,ypos};
 	return b;
 }
-
+int abs(int val) 
+{ return ((val >= 0) ? val : -val); }
 //////////////////////////////////
 
 //////////////////////////////////GLOBAL VARIABLES
@@ -268,10 +289,70 @@ RoomVector get_open_rooms(int row,
 		Room * visit_map); 
 
 //////////////////////////////////FUNCTIONS
-///////////////////////////////////////////MAZE SETUP
+/////////////////////////////////////////////GAMEPLAY
+void move_badguys(int player_y, int player_x) 
+{
+	for (int i = 0; i < num_badguys; i++) {
+		int dx = 0;
+		int dy = 0;
+		BadGuy * b = &badguys[i];
+		b->prevxpos = b->xpos;
+		b->prevypos = b->ypos;
+
+		//below code makes the badguys move towards the player
+		if (player_x > b->xpos) {
+			dx = (rand() % 2);
+		} else if (player_x < b->xpos) {
+			dx = -(rand() % 2);
+		}
+
+		if (player_y > b->ypos) {
+			dy = (rand() % 2);
+		} else if (player_y < b->ypos) {
+			dy = -(rand() % 2);
+		}
+
+
+		if (is_legal_position(b->ypos+dy,b->xpos+dx,4,4)) {
+			b->ypos += dy;
+			b->xpos += dx;
+			draw_BadGuy(*b);
+		} else if (is_legal_position(b->ypos, b->xpos+dx, 4, 4)) {
+			//then just move in x direction		
+			b->xpos += dx;
+			draw_BadGuy(*b);
+		} else if (is_legal_position(b->ypos+dy, b->xpos, 4, 4)) {
+			b->ypos += dy;
+			draw_BadGuy(*b);
+		} else {
+			draw_BadGuy(*b);
+		}
+	}
+
+}
+
+bool check_badguys_collision(int player_y, int player_x)
+{
+	for (int i = 0; i < num_badguys; i++) {
+		BadGuy b = badguys[i];
+		if ((abs(b.xpos - player_x) < 4) && (abs(b.ypos - player_y) < 4)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+void draw_badguys()
+{
+	for (int i = 0; i < num_badguys; i++) {
+		draw_BadGuy(badguys[i]);
+	}
+}
+/////////////////////////////////////////////
+/////////////////////////////////////////////MAZE SETUP
 void create_badguys(Room * visit_map)
 {
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 6; i++) {
 		int row = rand() % NBLOCKSH;
 		int ypos = row*BLOCK_H+1;
 
@@ -283,14 +364,6 @@ void create_badguys(Room * visit_map)
 		num_badguys++;
 	}
 }
-
-void draw_badguys()
-{
-	for (int i = 0; i < num_badguys; i++) {
-		draw_BadGuy(badguys[i]);
-	}
-}
-
 void create_portals(Room * visit_map) 
 {
 	for (int i = 0; i < 3; i++) {
@@ -758,7 +831,7 @@ int main(void)
 		for (int i = 0; i < num_special_rooms; i++) {
 			draw_cell(*special_rooms[i]);
 		}
-		draw_badguys();
+		move_badguys(ypos,xpos);
 
 		if ((dx != 0) || (dy != 0)) {
 			if (is_legal_position(ypos+dy,xpos+dx,4,4)) {
@@ -779,6 +852,10 @@ int main(void)
 			}
 		} else {
 				draw_player(ypos,xpos);
+		}
+
+		if (check_badguys_collision(ypos,xpos)) {
+			return 0;
 		}
 	}
 	return 0;

@@ -10,7 +10,6 @@ u16 __key_prev;
 u16 __key_curr;
 
 
-
 void vid_vsync()
 {
     while(REG_VCOUNT >= 160);   // wait till VDraw
@@ -44,9 +43,8 @@ void drawRect(int r, int c, int width, int height, COLOR color)
 //	}
 }
 
-
-
-void drawHollowRect(int r, int c, int width, int height, COLOR color) {
+void drawHollowRect(int r, int c, int width, int height, COLOR color) 
+{
 	//draw clockwise starting from top left corner
 	int rightcol = c+width;
 	int bottomrow = r+height;
@@ -67,7 +65,9 @@ void drawHollowRect(int r, int c, int width, int height, COLOR color) {
 		setPixel(tr,rightcol,color);
 	}
 }
-void clearScreen() {
+
+void clearScreen() 
+{
 	u16 black = BLACK;
         DMA[3].src = &black;
         DMA[3].dst = videoBuffer;
