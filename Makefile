@@ -11,12 +11,12 @@ PROGNAME = supergame
 
 # The object files you want to compile into your program
 # This should be a space (SPACE!) separated list of .o files
-OFILES = main.o mylib.o splash.o splashnotext.o
+OFILES = main.o mylib.o splash.o splashnotext.o font2.o
 
 # The header files you have created.
 # This is necessary to determine when to recompile for files.
 # This should be a space (SPACE!) separated list of .h files
-HFILES = mylib.h 
+HFILES = mylib.h font2.h
 
 ################################################################################
 # These are various settings used to make the GBA toolchain work

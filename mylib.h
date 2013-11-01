@@ -168,5 +168,6 @@ void drawRect(int r, int c, int width, int height, COLOR color);
 void drawHollowRect(int r, int c, int width, int height, COLOR color);
 void clearScreen(); 
 void pixelDebug(int row, int num);
+void draw_image_3(int r, int c, int width, int height, const u16* image);
 
 #endif

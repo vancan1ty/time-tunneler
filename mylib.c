@@ -74,6 +74,26 @@ void clearScreen()
         DMA[3].cnt = (240*160) | DMA_ENABLE | DMA_SOURCE_FIXED;
 }
 
+/* draw_image_3
+ * * A function that will draw an arbitrary sized image
+ * * onto the screen (with DMA).
+ * * @param r row to draw the image
+ * * @param c column to draw the image
+ * * @param width width of the image
+ * * @param height height of the image
+ * * @param image Pointer to the first element of the image.
+ * */
+void draw_image_3(int r, int c, int width, int height, const u16* image)
+{
+	while (height--) {
+		DMA[3].src = image+width*height;
+		DMA[3].dst = videoBuffer + 240*(r+height) + c;
+		DMA[3].cnt = (width) | DMA_ENABLE;
+	}
+}
+
+
+
 /***************************** DEBUGGING *****************************/
 void pixelDebug(int row, int num) 
 {

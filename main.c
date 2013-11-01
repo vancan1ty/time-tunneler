@@ -5,6 +5,45 @@
 #include "mylib.h"
 #include "splash.h"
 #include "splashnotext.h"
+#include "font2.h"
+//////////////////////////////////FONT STUFF
+
+void draw_character2(int r, int c, char ch) 
+{
+	draw_image_3(r, c, 6, 8, fontdata2_6x8+(6*8)*ch);
+}
+
+void draw_string2(int r, int c, char * ch)
+{
+	int offset = 0;
+	while(*(ch+offset) != '\0') {
+		draw_character2(r,c+offset*6, *(ch+offset));
+//		draw_image_3(r,c+6*offset,6,8, fontdata2_6x8+(6*8)*(ch+offset));
+		offset++;
+	}
+}
+void wrap_string2(int r, int c, char * ch)
+{
+	int roffset = 0;
+	int x_offset = 0;
+	int y_offset = 0;
+	while(*(ch+roffset) != '\0') {
+		if (*(ch+roffset) == '\n') {
+			y_offset++;
+			x_offset=0;
+			roffset++;
+			continue;
+		} else if (x_offset >= 39) {
+			y_offset++;
+			x_offset=0;
+		}
+		draw_character2(r+y_offset*8,c+x_offset*6, *(ch+roffset));
+//		draw_image_3(r,c+6*x_offset,6,8, fontdata2_6x8+(6*8)*(ch+x_offset));
+		x_offset++;
+		roffset++;
+	}
+}
+
 
 //////////////////////////////////QUICK RANDOM NUMBER GENERATOR
 int __qran_seed=42;
@@ -31,7 +70,7 @@ INLINE int qran()
 #define BLOCK_W	        8
 #define BLOCK_H	        8
 #define NBLOCKSW        SCREEN_WIDTH/BLOCK_W
-#define NBLOCKSH	    SCREEN_HEIGHT/BLOCK_H
+#define NBLOCKSH	    18
 #define CORNER_S        1
 #define CELL_S          6
 #define EWRAM           0x02000000
@@ -296,19 +335,39 @@ void move_badguys(int player_y, int player_x)
 		int dx = 0;
 		int dy = 0;
 		BadGuy * b = &badguys[i];
+//		int prevdx = b->xpos - b->prevxpos;
+//		int prevdy = b->ypos - b->prevypos; //try to repeat
 		b->prevxpos = b->xpos;
 		b->prevypos = b->ypos;
 
+
+//		if (abs(prevdx) > 0  || abs(prevdy) > 0) {	
+//			if (is_legal_position(b->ypos+prevdy,b->xpos+prevdx,4,4)) {
+//				b->ypos += prevdy;
+//				b->xpos += prevdx;
+//				draw_BadGuy(*b);
+//				return;
+//			}
+//		}
+
+		//else we will choose a new direction, trying to move towards player.
+
+		
 		//below code makes the badguys move towards the player
 		if (player_x > b->xpos) {
+			//dx = (rand() % 4) - 1;
+
 			dx = (rand() % 2);
 		} else if (player_x < b->xpos) {
+	//		dx = (-(rand() % 4)) + 1;
 			dx = -(rand() % 2);
 		}
 
 		if (player_y > b->ypos) {
+			//dy = (rand() % 4) - 1;
 			dy = (rand() % 2);
 		} else if (player_y < b->ypos) {
+		//	dy = (-(rand() % 4)) + 1;
 			dy = -(rand() % 2);
 		}
 
@@ -784,7 +843,7 @@ int main(void)
 	wallbitset = (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
 
 	DEBUG_PRINTF("sizeof DMA_CONTROLLER: %d \n\n", sizeof(DMA_CONTROLLER));
-	display_image(splash);
+	draw_image_3(0,0,240,160,splash);
 
 	REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
 	//test();
@@ -796,11 +855,33 @@ int main(void)
 	Room * visit_map = calc_maze(curr_seed, &ypos);
 	create_portals(visit_map);
 	create_badguys(visit_map);
+
 		
 
 	while(!KEY_DOWN_NOW(KEY_START)); //wait till enter pressed
 
-	display_image(splashnotext);
+
+	draw_image_3(0,0,240,160,splashnotext);
+	draw_string2(0,0,"hi there!");
+	draw_string2(2*8,0,"DIRECTIONS:");
+	draw_string2(3*8,0,"The objective is to make it through");
+	draw_string2(4*8,0,"each maze, starting on green and ending");
+	draw_string2(5*8,0,"at red.");
+	draw_string2(7*8,0,"Portals help you reach your destination");
+	draw_string2(8*8,0,"Press 'B' while on a colored portal" );
+	draw_string2(9*8,0,"square to jump to its counterpart");
+	draw_string2(11*8,0,"Avoid orange squares -- if they catch");
+	draw_string2(12*8,0,"you, you die.");
+	draw_string2(18*8,0,"Press 'A' to continue.");
+
+/*	wrap_string2(2*8,0,
+"DIRECTIONS:\n\
+The objective is to make it through the maze, starting on green \
+and ending at red.");*/
+
+	while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
+
+	draw_image_3(0,0,240,160,splashnotext);
 	draw_maze(visit_map);
 
 //	dma_transfer(3, videoBuffer, maze_back, 384000 | DMA_ENABLE);
