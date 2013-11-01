@@ -25,22 +25,23 @@ void setPixel(int r, int c, COLOR color) {
 }
 
 //r and c represent the top and left corners of the rectangle, respectively
-void drawRect(int r, int c, int width, int height, COLOR color) {
+void drawRect(int r, int c, int width, int height, COLOR color) 
+{
 
-//	DMA[3].cnt = 0;
-//
-//	while (height--) {
-//		DMA[3].src = &color;
-//		DMA[3].dst = videoBuffer + (r+height)*240 + c;
-//		DMA[3].cnt = (width) | DMA_ENABLE | DMA_SOURCE_FIXED;
-//
-//	}
-//
-	for (int i=r; i < r+height; i++) {
-		for (int i2=c; i2 < c+width; i2++) {
-			setPixel(i,i2,color);
-		}
+	DMA[3].cnt = 0;
+
+	while (height--) {
+		DMA[3].src = &color;
+		DMA[3].dst = videoBuffer + (r+height)*240 + c;
+		DMA[3].cnt = (width) | DMA_ENABLE | DMA_SOURCE_FIXED;
+
 	}
+
+//	for (int i=r; i < r+height; i++) {
+//		for (int i2=c; i2 < c+width; i2++) {
+//			setPixel(i,i2,color);
+//		}
+//	}
 }
 
 

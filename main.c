@@ -230,6 +230,24 @@ typedef struct DXDY
 	int dx;
 	int dy;
 } dxdy;
+typedef struct BadGuy
+{
+	int prevxpos;
+	int prevypos;
+	int xpos;
+	int ypos;
+} BadGuy;
+void draw_BadGuy(BadGuy badguy)
+{
+	drawRect(badguy.prevypos,badguy.prevxpos,4,4,WHITE);
+	drawRect(badguy.ypos,badguy.xpos,4,4,ORANGE);
+}
+BadGuy new_BadGuy(int ypos, int xpos)
+{
+	BadGuy b = {xpos,ypos,xpos,ypos};
+	return b;
+}
+
 //////////////////////////////////
 
 //////////////////////////////////GLOBAL VARIABLES
@@ -241,6 +259,9 @@ Room * special_rooms[10]; //these need to be redrawn every cycle.
 int num_special_rooms = 0;
 int numportals = 0;
 Portal portals[3]; //up to three portals in level
+BadGuy badguys[10];
+int num_badguys = 0;
+
 //////////////////////////////////
 RoomVector get_open_rooms(int row, 
 		int col, 
@@ -248,6 +269,28 @@ RoomVector get_open_rooms(int row,
 
 //////////////////////////////////FUNCTIONS
 ///////////////////////////////////////////MAZE SETUP
+void create_badguys(Room * visit_map)
+{
+	for (int i = 0; i < 3; i++) {
+		int row = rand() % NBLOCKSH;
+		int ypos = row*BLOCK_H+1;
+
+		int col = rand() % NBLOCKSW;
+		int xpos = col*BLOCK_W+1;
+
+		BadGuy b = new_BadGuy(ypos,xpos);
+		badguys[num_badguys] = b;
+		num_badguys++;
+	}
+}
+
+void draw_badguys()
+{
+	for (int i = 0; i < num_badguys; i++) {
+		draw_BadGuy(badguys[i]);
+	}
+}
+
 void create_portals(Room * visit_map) 
 {
 	for (int i = 0; i < 3; i++) {
@@ -550,8 +593,19 @@ void clear_holds()
 dxdy get_reqd_mvmnt() 
 {
 		key_poll();
+
+		if (0 == ((KEY_UP | KEY_RIGHT | KEY_DOWN | KEY_LEFT) & __key_curr)) {
+			//then there is no change needed
+//			  DEBUG_PRINT("doing nothin'\n");
+			dxdy out = {0, 0};
+			return out;
+		} /*else {
+			  DEBUG_PRINTF("hmm %d\n", (KEY_UP | KEY_RIGHT | KEY_DOWN | KEY_LEFT) & __key_curr);
+		} */
+
 		int dx = 0;
 		int dy = 0;
+
 
 		bool hit = 0;
 		if (key_hit(KEY_UP)) {
@@ -668,6 +722,7 @@ int main(void)
 	int ypos; //gets set in calc_maze
 	Room * visit_map = calc_maze(curr_seed, &ypos);
 	create_portals(visit_map);
+	create_badguys(visit_map);
 		
 
 	while(!KEY_DOWN_NOW(KEY_START)); //wait till enter pressed
@@ -703,6 +758,7 @@ int main(void)
 		for (int i = 0; i < num_special_rooms; i++) {
 			draw_cell(*special_rooms[i]);
 		}
+		draw_badguys();
 
 		if ((dx != 0) || (dy != 0)) {
 			if (is_legal_position(ypos+dy,xpos+dx,4,4)) {

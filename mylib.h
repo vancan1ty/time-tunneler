@@ -32,6 +32,7 @@ typedef u16 COLOR;
 #define WHITE           RGB(31,31,31)
 #define BLACK           RGB(0,0,0)
 #define YELLOW	        RGB(31,31,0)
+#define ORANGE          RGB(31,17,0)
 
 /********************************************************/
 
