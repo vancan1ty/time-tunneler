@@ -6,8 +6,7 @@
 #include "splash.h"
 #include "splashnotext.h"
 
-
-/******************************** PREPROCESSOR ********************************/
+//////////////////////////////////**PREPROCESSOR
 #define RANDSEED     	23
 #define BLOCK_W	        8
 #define BLOCK_H	        8
@@ -15,9 +14,12 @@
 #define NBLOCKSH	    SCREEN_HEIGHT/BLOCK_H
 #define CORNER_S        1
 #define CELL_S          6
-/******************************************************************************/
+#define EWRAM           0x02000000
+//////////////////////////////////
 
-/*********************************** STRUCT ***********************************/
+void set_rect_occupied(int r, int c, int width, int height);
+/////////////////////////////////ROOM STRUCT
+
 typedef struct Room 
 {
 	int row;
@@ -37,56 +39,8 @@ Room new_Room(int row, int col)
 	return room;
 }
 
-int * wallbitset; //= (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
-//bitset keeping track of whether a pixel is in a wall or not.
-//a little tricky to access values, etc.  requires a mask.
-
-bool isOccupied(int ypos, int xpos) 
-{
-	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
-	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
-	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
-	bool out = (mask == (mask & wallbitset[intindex] ));
-	return out;
-}
-
-void setOccupied(int ypos, int xpos)
-{
-	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
-	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
-	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
-	wallbitset[intindex] = mask | wallbitset[intindex];
-}
-
-void setRectOccupied(int r, int c, int width, int height) 
-{
-	for (int i=r; i < r+height; i++) {
-		for (int i2=c; i2 < c+width; i2++) {
-			setOccupied(i,i2);
-		}
-	}
-}
-
-
-bool isLegalPosition(int ypos, int xpos, int height, int width)
-{
-	//check four corners, and every other pixel along sides
-	//will have to change this if I expand characters
-	if (isOccupied(ypos, xpos) || isOccupied(ypos+height-1,xpos) ||
-		isOccupied(ypos, xpos+width-1) || isOccupied(ypos+height-1,xpos+width-1)
-		|| isOccupied(ypos,xpos+1) || isOccupied(ypos+height-1, xpos+1) ||
-		isOccupied(ypos+1,xpos) || isOccupied(ypos+1, xpos+width-1)
-			) {
-		DEBUG_PRINTF("the 4: %d %d %d %d\n\n", isOccupied(ypos, xpos), isOccupied(ypos+height-1,xpos), isOccupied(ypos, xpos+width-1), isOccupied(ypos+height-1,xpos+width-1));
-		return 0;
-	}
-	
-	//otherwise
-	return 1;
-}
-
 //just redraws the cell...
-void draw_Cell(Room room) 
+void draw_cell(Room room) 
 {
 	drawRect(room.row*BLOCK_H + CORNER_S, room.col*BLOCK_W + CORNER_S, CELL_S, CELL_S, room.color); 
 }
@@ -110,10 +64,10 @@ void draw_Room(Room room)
 	} */
 
 	//set wall bitset.
-	setRectOccupied(room.row*BLOCK_H,room.col*BLOCK_W,CORNER_S,CORNER_S); 
-	setRectOccupied(room.row*BLOCK_H + CORNER_S + CELL_S, room.col*BLOCK_W, CORNER_S, CORNER_S);		
-	setRectOccupied(room.row*BLOCK_H,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
-	setRectOccupied(room.row*BLOCK_H+CORNER_S+CELL_S,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
+	set_rect_occupied(room.row*BLOCK_H,room.col*BLOCK_W,CORNER_S,CORNER_S); 
+	set_rect_occupied(room.row*BLOCK_H + CORNER_S + CELL_S, room.col*BLOCK_W, CORNER_S, CORNER_S);		
+	set_rect_occupied(room.row*BLOCK_H,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
+	set_rect_occupied(room.row*BLOCK_H+CORNER_S+CELL_S,room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CORNER_S);		
 
 	//draw central cell
 	drawRect(room.row*BLOCK_H + CORNER_S, room.col*BLOCK_W + CORNER_S, CELL_S, CELL_S, room.color); 
@@ -123,13 +77,13 @@ void draw_Room(Room room)
 
 		drawRect(room.row*BLOCK_H, room.col*BLOCK_W + CORNER_S, CELL_S, CORNER_S, WHITE); 
 	} else {
-		setRectOccupied(room.row*BLOCK_H, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
+		set_rect_occupied(room.row*BLOCK_H, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
 	}
 	if (!room.right_intact) {
 
 		drawRect(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CELL_S, WHITE); 
 	} else {
-		setRectOccupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CELL_S);		
+		set_rect_occupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W+CORNER_S+CELL_S, CORNER_S, CELL_S);		
 	}
 
 	if (!room.bottom_intact) {
@@ -137,22 +91,110 @@ void draw_Room(Room room)
 		drawRect(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S, WHITE); 
 	} else {
 
-		setRectOccupied(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
+		set_rect_occupied(room.row*BLOCK_H+CORNER_S+CELL_S, room.col*BLOCK_W+CORNER_S, CELL_S, CORNER_S);		
 	}
 	if (!room.left_intact) {
 
 		drawRect(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W, CORNER_S, CELL_S, WHITE); 
 	} else {
 
-		setRectOccupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W, CORNER_S, CELL_S);		
+		set_rect_occupied(room.row*BLOCK_H+CORNER_S, room.col*BLOCK_W, CORNER_S, CELL_S);		
+	}
+}
+//////////////////////////////////
+
+//////////////////////////////////PORTAL STRUCT
+typedef struct Portal
+{
+	Room * room1;
+	Room * room2;
+	COLOR color;
+} Portal;
+
+
+Portal portals[];
+int numportals;
+
+// returns * to room to jump to from current
+// or else returns NULL 
+Room * portal_jump(Room * roomp)  
+{
+	for (int i = 0; i < numportals; i++) {
+		if (roomp == portals[i].room1) {
+			return portals[i].room2;	
+		} else if (roomp == portals[i].room2) {
+			return portals[i].room1;
+		}
+	}
+	//else
+	return NULL;
+}
+
+//////////////////////////////////
+
+//////////////////////////////////FORWARD FUNCTION DECLARATIONS
+Room * calc_maze(int randseed, int * start_row);
+int get_next_room (Room ** rooms, 
+		int current_room_index, 
+		Room * visit_map);
+
+void draw_maze(Room * visit_map);
+void draw_player(int rowp, int colp);
+bool special_rooms_contains(int roomindex);
+//////////////////////////////////
+
+/////////////////////////////////WALL BITSET
+int * wallbitset; //= (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
+//bitset keeping track of whether a pixel is in a wall or not.
+//a little tricky to access values, etc.  requires a mask.
+
+bool is_occupied(int ypos, int xpos) 
+{
+	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
+	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
+	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
+	bool out = (mask == (mask & wallbitset[intindex] ));
+	return out;
+}
+
+void set_occupied(int ypos, int xpos)
+{
+	int intindex = (ypos*SCREEN_WIDTH+xpos)/sizeof(int);
+	int maskindex = (ypos*SCREEN_WIDTH+xpos)%sizeof(int);
+	int mask = (0x1 << (sizeof(int) - 1 - maskindex));
+	wallbitset[intindex] = mask | wallbitset[intindex];
+}
+
+void set_rect_occupied(int r, int c, int width, int height) 
+{
+	for (int i=r; i < r+height; i++) {
+		for (int i2=c; i2 < c+width; i2++) {
+			set_occupied(i,i2);
+		}
 	}
 }
 
-enum Direction {ABOVE, RIGHT, BELOW, LEFT};
+bool is_legal_position(int ypos, int xpos, int height, int width)
+{
+	//check four corners, and every other pixel along sides
+	//will have to change this if I expand characters
+	if (is_occupied(ypos, xpos) || is_occupied(ypos+height-1,xpos) ||
+		is_occupied(ypos, xpos+width-1) || is_occupied(ypos+height-1,xpos+width-1)
+		|| is_occupied(ypos,xpos+1) || is_occupied(ypos+height-1, xpos+1) ||
+		is_occupied(ypos+1,xpos) || is_occupied(ypos+1, xpos+width-1)
+			) {
+		DEBUG_PRINTF("the 4: %d %d %d %d\n\n", is_occupied(ypos, xpos), is_occupied(ypos+height-1,xpos), is_occupied(ypos, xpos+width-1), is_occupied(ypos+height-1,xpos+width-1));
+		return 0;
+	}
+	
+	//otherwise
+	return 1;
+}
 
 //returns direction of r2 w.r.t. r1.
 //For example, if r2 is to the right of r1, returns RIGHT
 //returns -1 if they aren't adjacent
+enum Direction {ABOVE, RIGHT, BELOW, LEFT};
 int get_rel_orientation(Room r1, Room r2) 
 {
 	if (r2.col == r1.col) {
@@ -175,213 +217,38 @@ int get_rel_orientation(Room r1, Room r2)
 
 	return -1;
 }
+//////////////////////////////////
 
+//////////////////////////////////OTHER UTILITY DECLARATIONS
 typedef struct RoomVector 
 {
 	Room ** rooms; 
 	int numRooms;
 } RoomVector;
-
-/******************************************************************************/
-/**************************** FORWARD DECLARATIONS ****************************/
-Room * calcMaze(int randseed, int * start_row);
-RoomVector get_open_rooms(int row, 
-		int col, 
-		Room * visit_map); 
-int get_next_room (Room ** rooms, 
-		int current_room_index, 
-		Room * visit_map);
-
-void drawMaze(Room * visit_map);
-void drawProtagonist(int rowp, int colp);
-/******************************************************************************/
-
-/********************************* FUNCTIONS *********************************/
-void displaySplashScreen(const unsigned short image[38400])
-{	
-	DMA[3].src = image;
-	DMA[3].dst = videoBuffer;
-	DMA[3].cnt = (240*160) | DMA_ENABLE;
-}
-
-
-
 typedef struct DXDY
 {
 	int dx;
 	int dy;
 } dxdy;
+//////////////////////////////////
 
-
-
+//////////////////////////////////GLOBAL VARIABLES
 int cycles_top_held = 0;
 int cycles_right_held = 0;
 int cycles_bottom_held = 0;
 int cycles_left_held = 0;
-
-void clear_holds() 
-{
-	cycles_top_held = 0;
-	cycles_right_held = 0;
-	cycles_bottom_held = 0;
-	cycles_left_held = 0;
-}
-
-dxdy getReqdChange() 
-{
-		key_poll();
-		int dx = 0;
-		int dy = 0;
-
-		bool hit = 0;
-		if (key_hit(KEY_UP)) {
-			dy += -2;	
-			hit = 1;
-		} 
-		if (key_hit(KEY_RIGHT)) {
-			dx += 2;	
-			hit = 1;
-		} 
-		if (key_hit(KEY_DOWN)) {
-			dy += 2;		
-			hit = 1;
-		} 
-		if (key_hit(KEY_LEFT)) {
-			dx += -2;
-			hit = 1;
-		}
-
-		if (hit == 1) {
-			clear_holds();
-			dxdy out = {dx, dy};
-			return out;
-		}
-
-			
-		if (key_is_down(KEY_UP)) {
-			cycles_top_held++;		
-		} else {
-			cycles_top_held=0;		
-		}
-		if (key_is_down(KEY_RIGHT)) {
-			cycles_right_held++;		
-		} else {
-			cycles_right_held=0;		
-		}
-		if (key_is_down(KEY_DOWN)) {
-			cycles_bottom_held++;		
-		} else {
-			cycles_bottom_held=0;		
-		}
-		if (key_is_down(KEY_LEFT)) {
-			cycles_left_held++;		
-		} else {
-			cycles_left_held=0;		
-		}
-
-		if (cycles_top_held > 6) {
-			cycles_top_held++;		
-			dy = -1;	
-		} 
-		if (cycles_right_held > 6) {
-			cycles_right_held++;		
-			dx = 1;	
-		} 
-		if (cycles_bottom_held > 6) {
-			cycles_bottom_held++;		
-			dy = 1;		
-		} 
-		if (cycles_left_held > 6) {
-			cycles_left_held++;		
-			dx = -1;
-		}
-
-
-		dxdy out = {dx, dy};
-		return out;
-
-
-}
-
-#define EWRAM   0x02000000
-//u16 * maze_back;// = (u16 *) EWRAM+0x4000; //hopefully this space isn't used?? ;)
-
 Room * special_rooms[10]; //these need to be redrawn every cycle.
 int num_special_rooms = 0;
-
-void knock_out_walls(Room * visit_map) 
-{
-	//knock out some walls of maze
-	for (int i = 0; i < 90; i++) {
-		int r = rand() % (NBLOCKSH*NBLOCKSW);	
-		Room * troom = &visit_map[r];
-//		troom->top_intact = 0;
-//		visit_map[r-NBLOCKSW].bottom_intact = 0;
-		int r2 = rand() % 4; //now choose wall to set empty
-		if (r2 == 0) {
-			if (r >= NBLOCKSW) { //then there is a room above
-				troom->top_intact = 0;
-				Room * roomabove = &visit_map[r-NBLOCKSW];
-				roomabove->bottom_intact = 0;
-			}
-		} else if (r2 == 1) {
-			if ((r % NBLOCKSW) < (NBLOCKSW-1)) { //then there is a room to right
-				troom->right_intact = 0;
-				Room * roomright = &visit_map[r+1];
-				roomright->left_intact = 0;
-			}
-		} else if (r2 == 2) {
-			if (r < (NBLOCKSW*(NBLOCKSH-1))) { //then there is a room below
-				troom->bottom_intact = 0;
-				Room * roombelow = &visit_map[r+NBLOCKSW];
-				roombelow->top_intact = 0;
-			}
-		} else if (r2 == 3) {
-			if ((r % NBLOCKSW) > 0) { //then there is a room to left
-				troom->left_intact = 0;
-				Room * roomleft = &visit_map[r-1];
-				roomleft->right_intact = 0;
-			}
-		}
-	} 
-}
-
-bool special_rooms_contains(int roomindex) 
-{
-	for (int i = 0; i < num_special_rooms; i++) {
-		if (((special_rooms[i]->row *NBLOCKSW) + special_rooms[i]->col) == roomindex) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-typedef struct Portal
-{
-	Room * room1;
-	Room * room2;
-	COLOR color;
-} Portal;
-
 int numportals = 0;
 Portal portals[3]; //up to three portals in level
+//////////////////////////////////
+RoomVector get_open_rooms(int row, 
+		int col, 
+		Room * visit_map); 
 
-// returns * to room to jump to from current
-// or else returns NULL 
-Room * portalJump(Room * roomp)  
-{
-	for (int i = 0; i < numportals; i++) {
-		if (roomp == portals[i].room1) {
-			return portals[i].room2;	
-		} else if (roomp == portals[i].room2) {
-			return portals[i].room1;
-		}
-	}
-	//else
-	return NULL;
-}
-
-void createPortals(Room * visit_map) 
+//////////////////////////////////FUNCTIONS
+///////////////////////////////////////////MAZE SETUP
+void create_portals(Room * visit_map) 
 {
 	for (int i = 0; i < 3; i++) {
 		int i1 = rand() % (NBLOCKSH*NBLOCKSW);
@@ -408,103 +275,7 @@ void createPortals(Room * visit_map)
 	}
 }
 
-Room * map_from_pix_to_room(Room * visit_map, int row, int col)
-{
-	int roomRow = row/BLOCK_H;	
-	int roomCol = col/BLOCK_W;
-
-	return &visit_map[NBLOCKSW*roomRow + roomCol];
-}
-
-
-int main(void) 
-{
-	wallbitset = (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
-
-	DEBUG_PRINTF("sizeof DMA_CONTROLLER: %d \n\n", sizeof(DMA_CONTROLLER));
-	displaySplashScreen(splash);
-
-	REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
-	//test();
-
-	int curr_seed = RANDSEED;
-
-	int xpos = 1;
-	int ypos; //gets set in calcMaze
-	Room * visit_map = calcMaze(curr_seed, &ypos);
-	createPortals(visit_map);
-		
-
-	while(!KEY_DOWN_NOW(KEY_START)); //wait till enter pressed
-
-	displaySplashScreen(splashnotext);
-	drawMaze(visit_map);
-
-//	dma_transfer(3, videoBuffer, maze_back, 384000 | DMA_ENABLE);
-
-	drawProtagonist(ypos,xpos);
-
-	//EDTLOOP!
-	while(1) {
-
-		dxdy nxtreqs = getReqdChange(); //key_poll is called in here
-		int dx = nxtreqs.dx;
-		int dy = nxtreqs.dy;
-
-		if (key_hit(KEY_B) )  {
-			Room * jmp_to = portalJump(map_from_pix_to_room(visit_map,ypos,xpos));
-			DEBUG_PRINT("B pressed\n\n");
-
-			if (jmp_to != NULL) {
-				ypos = (jmp_to->row)*BLOCK_H+1;		
-				xpos = (jmp_to->col)*BLOCK_W+1;		
-				continue;
-			}
-		}
-
-		vid_vsync();
-
-//		dma_transfer(3, maze_back, videoBuffer, 384000 | DMA_ENABLE);
-		for (int i = 0; i < num_special_rooms; i++) {
-			draw_Cell(*special_rooms[i]);
-		}
-
-		if ((dx != 0) || (dy != 0)) {
-			if (isLegalPosition(ypos+dy,xpos+dx,4,4)) {
-				drawProtagonist(ypos+dy,xpos+dx);
-				ypos += dy;
-				xpos += dx;
-			} else if (isLegalPosition(ypos, xpos+dx, 4, 4)) {
-				//then just move in x direction		
-				drawProtagonist(ypos,xpos+dx);
-				xpos += dx;
-			} else if (isLegalPosition(ypos+dy, xpos, 4, 4)) {
-				//then just move in x direction		
-				drawProtagonist(ypos+dy,xpos);
-				ypos += dy;
-			} else {
-				drawProtagonist(ypos,xpos);
-				DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
-			}
-		} else {
-				drawProtagonist(ypos,xpos);
-		}
-	}
-	return 0;
-}
-
-void drawProtagonist(int rowp, int colp) 
-{
-	static int prevrowp = 1;
-	static int prevcolp = 1;
-
-	drawRect(prevrowp, prevcolp, 4, 4, WHITE);
-	drawRect(rowp, colp, 4, 4, RGB(0,0,20));
-	prevrowp = rowp;
-	prevcolp = colp;
-}
-
-void drawMaze(Room * visit_map) 
+void draw_maze(Room * visit_map) 
 {
 	for (int i = 0; i < NBLOCKSW*NBLOCKSH; i++) {
 
@@ -520,23 +291,8 @@ void drawMaze(Room * visit_map)
 	}
 }
 
-void waitOnArrow() 
-{
-	bool rightPushed = 0;
-	bool leftPushed = 0;
-	bool hasInput = 0;
-	while(!hasInput){ 
-		rightPushed = KEY_DOWN_NOW(KEY_RIGHT); 
-		leftPushed = KEY_DOWN_NOW(KEY_LEFT);
-		if (rightPushed || leftPushed) {
-			hasInput=1; //break out of loop, do action
-		}
-	} 
-
-}
-
 //returns visit_map
-Room * calcMaze(int randseed, int * start_row) 
+Room * calc_maze(int randseed, int * start_row) 
 {
 	//split the screen up into four by six pixel blocks
 
@@ -590,15 +346,6 @@ Room * calcMaze(int randseed, int * start_row)
 		prev_room = current_room;
 		current_room = rooms[roomindex];
 		current_room->inMaze = 1;
-
-
-		//		DEBUG_PRINTF("prev_room.  r: %d, c: %d\n\n", 
-		//				prev_room->row, 
-		//				prev_room->col);
-		//
-		//		DEBUG_PRINTF("current_room.  r: %d, c: %d\n\n", 
-		//				current_room->row, 
-		//				current_room->col);
 
 		int orientation = get_rel_orientation(*prev_room,*current_room);
 		if (orientation == ABOVE) {
@@ -745,16 +492,251 @@ RoomVector get_open_rooms(int row, int col, Room visit_map[NBLOCKSH*NBLOCKSW])
 	}
 	return openRoomVec;
 }
-/******************************************************************************/
+
+void knock_out_walls(Room * visit_map)  //not currently used
+{
+	//knock out some walls of maze
+	for (int i = 0; i < 90; i++) {
+		int r = rand() % (NBLOCKSH*NBLOCKSW);	
+		Room * troom = &visit_map[r];
+//		troom->top_intact = 0;
+//		visit_map[r-NBLOCKSW].bottom_intact = 0;
+		int r2 = rand() % 4; //now choose wall to set empty
+		if (r2 == 0) {
+			if (r >= NBLOCKSW) { //then there is a room above
+				troom->top_intact = 0;
+				Room * roomabove = &visit_map[r-NBLOCKSW];
+				roomabove->bottom_intact = 0;
+			}
+		} else if (r2 == 1) {
+			if ((r % NBLOCKSW) < (NBLOCKSW-1)) { //then there is a room to right
+				troom->right_intact = 0;
+				Room * roomright = &visit_map[r+1];
+				roomright->left_intact = 0;
+			}
+		} else if (r2 == 2) {
+			if (r < (NBLOCKSW*(NBLOCKSH-1))) { //then there is a room below
+				troom->bottom_intact = 0;
+				Room * roombelow = &visit_map[r+NBLOCKSW];
+				roombelow->top_intact = 0;
+			}
+		} else if (r2 == 3) {
+			if ((r % NBLOCKSW) > 0) { //then there is a room to left
+				troom->left_intact = 0;
+				Room * roomleft = &visit_map[r-1];
+				roomleft->right_intact = 0;
+			}
+		}
+	} 
+}
+/////////////////////////////////////////////
+
+/////////////////////////////////////////////RUNTIME FUNCTIONS
+void display_image(const unsigned short image[38400])
+{	
+	DMA[3].src = image;
+	DMA[3].dst = videoBuffer;
+	DMA[3].cnt = (240*160) | DMA_ENABLE;
+}
+
+void clear_holds() 
+{
+	cycles_top_held = 0;
+	cycles_right_held = 0;
+	cycles_bottom_held = 0;
+	cycles_left_held = 0;
+}
+
+dxdy get_reqd_mvmnt() 
+{
+		key_poll();
+		int dx = 0;
+		int dy = 0;
+
+		bool hit = 0;
+		if (key_hit(KEY_UP)) {
+			dy += -2;	
+			hit = 1;
+		} 
+		if (key_hit(KEY_RIGHT)) {
+			dx += 2;	
+			hit = 1;
+		} 
+		if (key_hit(KEY_DOWN)) {
+			dy += 2;		
+			hit = 1;
+		} 
+		if (key_hit(KEY_LEFT)) {
+			dx += -2;
+			hit = 1;
+		}
+
+		if (hit == 1) {
+			clear_holds();
+			dxdy out = {dx, dy};
+			return out;
+		}
+
+			
+		if (key_is_down(KEY_UP)) {
+			cycles_top_held++;		
+		} else {
+			cycles_top_held=0;		
+		}
+		if (key_is_down(KEY_RIGHT)) {
+			cycles_right_held++;		
+		} else {
+			cycles_right_held=0;		
+		}
+		if (key_is_down(KEY_DOWN)) {
+			cycles_bottom_held++;		
+		} else {
+			cycles_bottom_held=0;		
+		}
+		if (key_is_down(KEY_LEFT)) {
+			cycles_left_held++;		
+		} else {
+			cycles_left_held=0;		
+		}
+
+		if (cycles_top_held > 6) {
+			cycles_top_held++;		
+			dy = -1;	
+		} 
+		if (cycles_right_held > 6) {
+			cycles_right_held++;		
+			dx = 1;	
+		} 
+		if (cycles_bottom_held > 6) {
+			cycles_bottom_held++;		
+			dy = 1;		
+		} 
+		if (cycles_left_held > 6) {
+			cycles_left_held++;		
+			dx = -1;
+		}
+
+
+		dxdy out = {dx, dy};
+		return out;
+
+
+}
+
+bool special_rooms_contains(int roomindex) 
+{
+	for (int i = 0; i < num_special_rooms; i++) {
+		if (((special_rooms[i]->row *NBLOCKSW) + special_rooms[i]->col) == roomindex) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+Room * map_from_pix_to_room(Room * visit_map, int row, int col)
+{
+	int roomRow = row/BLOCK_H;	
+	int roomCol = col/BLOCK_W;
+
+	return &visit_map[NBLOCKSW*roomRow + roomCol];
+}
+
+void draw_player(int rowp, int colp) 
+{
+	static int prevrowp = 1;
+	static int prevcolp = 1;
+
+	drawRect(prevrowp, prevcolp, 4, 4, WHITE);
+	drawRect(rowp, colp, 4, 4, RGB(0,0,20));
+	prevrowp = rowp;
+	prevcolp = colp;
+}
+
+int main(void) 
+{
+	wallbitset = (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
+
+	DEBUG_PRINTF("sizeof DMA_CONTROLLER: %d \n\n", sizeof(DMA_CONTROLLER));
+	display_image(splash);
+
+	REG_DISPCNT = 0x403; //bg2, mode 3 (bitmap)
+	//test();
+
+	int curr_seed = RANDSEED;
+
+	int xpos = 1;
+	int ypos; //gets set in calc_maze
+	Room * visit_map = calc_maze(curr_seed, &ypos);
+	create_portals(visit_map);
+		
+
+	while(!KEY_DOWN_NOW(KEY_START)); //wait till enter pressed
+
+	display_image(splashnotext);
+	draw_maze(visit_map);
+
+//	dma_transfer(3, videoBuffer, maze_back, 384000 | DMA_ENABLE);
+
+	draw_player(ypos,xpos);
+
+	//EDTLOOP!
+	while(1) {
+
+		dxdy nxtreqs = get_reqd_mvmnt(); //key_poll is called in here
+		int dx = nxtreqs.dx;
+		int dy = nxtreqs.dy;
+
+		if (key_hit(KEY_B) )  {
+			Room * jmp_to = portal_jump(map_from_pix_to_room(visit_map,ypos,xpos));
+			DEBUG_PRINT("B pressed\n\n");
+
+			if (jmp_to != NULL) {
+				ypos = (jmp_to->row)*BLOCK_H+1;		
+				xpos = (jmp_to->col)*BLOCK_W+1;		
+				continue;
+			}
+		}
+
+		vid_vsync();
+
+//		dma_transfer(3, maze_back, videoBuffer, 384000 | DMA_ENABLE);
+		for (int i = 0; i < num_special_rooms; i++) {
+			draw_cell(*special_rooms[i]);
+		}
+
+		if ((dx != 0) || (dy != 0)) {
+			if (is_legal_position(ypos+dy,xpos+dx,4,4)) {
+				draw_player(ypos+dy,xpos+dx);
+				ypos += dy;
+				xpos += dx;
+			} else if (is_legal_position(ypos, xpos+dx, 4, 4)) {
+				//then just move in x direction		
+				draw_player(ypos,xpos+dx);
+				xpos += dx;
+			} else if (is_legal_position(ypos+dy, xpos, 4, 4)) {
+				//then just move in x direction		
+				draw_player(ypos+dy,xpos);
+				ypos += dy;
+			} else {
+				draw_player(ypos,xpos);
+				DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
+			}
+		} else {
+				draw_player(ypos,xpos);
+		}
+	}
+	return 0;
+}
+/////////////////////////////////////////////
 
 void test() 
 {
 	bool found = 0;
 
-	setOccupied(159,239);
+	set_occupied(159,239);
 	for (int r = 0; r < SCREEN_HEIGHT; r++)  {
 		for (int c = 0; c < SCREEN_WIDTH; c++) {
-			if (isOccupied(r,c)) {
+			if (is_occupied(r,c)) {
 				DEBUG_PRINTF("failing at %d, %d \n\n",r,c);
 				found = 1;
 			}
@@ -764,6 +746,6 @@ void test()
 	if (found == 0) {
 		DEBUG_PRINT("none occupied!\n\n");
 	}
-
-
 }
+//////////////////////////////////
+
