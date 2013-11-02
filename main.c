@@ -335,7 +335,7 @@ int abs(int val)
 //////////////////////////////////
 
 //////////////////////////////////GLOBAL VARIABLES
-int cycles_top_held = 0;
+int cycles_top_held = 0; //keyboard input helper vars
 int cycles_right_held = 0;
 int cycles_bottom_held = 0;
 int cycles_left_held = 0;
@@ -347,6 +347,7 @@ BadGuy badguys[10];
 int num_badguys = 0;
 int total_score = 0;
 int level_score = 0; //initialize to a time to count down from.
+int numhuggers = 2; //number of bad guys who hug wall
 
 //////////////////////////////////
 RoomVector get_open_rooms(int row, 
@@ -435,7 +436,7 @@ bool is_within_num_pixels(int num, int x1, int y1, int x2, int y2)
 	}
 }
 
-void move_badguys(int player_y, int player_x) 
+void move_badguys(int player_y, int player_x, int num_huggers) 
 {
 	for (int i = 0; i < num_badguys; i++) {
 		int dx = 0;
@@ -446,10 +447,10 @@ void move_badguys(int player_y, int player_x)
 		b->prevxpos = b->xpos;
 		b->prevypos = b->ypos;
 
-		if(i==2) { //hug right wall. would like to have more like this,
+		if(i<num_huggers) { //hug right wall. would like to have more like this,
 			//but have performance trouble.
 			if (!(b->made_contact)) {
-				DEBUG_PRINT("making contact yadayada\n");
+				//DEBUG_PRINT("making contact yadayada\n");
 				if (b->contact_pos.x==0) { //continue in same direction till wall
 					int dx = (b->facing == LEFT) ?  -1 : b->facing % 2; 
 					int dy = (b->facing == ABOVE) ?  -1 : (b->facing+1) % 2; 
@@ -492,9 +493,9 @@ void move_badguys(int player_y, int player_x)
 					b->xpos += ndx;
 					b->angular_sum = (b->angular_sum + 90) % 360;
 
-					char * info = badguy_to_string(b);
-					DEBUG_PRINTF("b not in contact!...\n %s \n",info);
-					free(info);
+//					char * info = badguy_to_string(b);
+//					DEBUG_PRINTF("b not in contact!...\n %s \n",info);
+//					free(info); 
 					b->facing = ndirection;
 					draw_BadGuy(*b);
 				} else {
@@ -508,9 +509,9 @@ void move_badguys(int player_y, int player_x)
 
 						int ndirection = posmod(b->facing-1,4);
 
-						char * info = badguy_to_string(b);
-						DEBUG_PRINTF("turning left!...\n %s\n", info);
-						free(info);
+//						char * info = badguy_to_string(b);
+//						DEBUG_PRINTF("turning left!...\n %s\n", info);
+//						free(info);
 						b->facing = ndirection;
 						b->angular_sum = posmod((b->angular_sum-90),360);
 						draw_BadGuy(*b);
@@ -518,9 +519,9 @@ void move_badguys(int player_y, int player_x)
 					} else { //we can proceed in same dir.
 						b->xpos +=dx;
 						b->ypos +=dy; 
-						char * info = badguy_to_string(b);
-						DEBUG_PRINTF("proceeding!...\n %s\n",info);
-						free (info);
+//						char * info = badguy_to_string(b);
+//						DEBUG_PRINTF("proceeding!...\n %s\n",info);
+//						free (info);
 						draw_BadGuy(*b);
 					}
 				}
@@ -680,10 +681,10 @@ void draw_badguys()
 /////////////////////////////////////////////
 
 /////////////////////////////////////////////MAZE SETUP
-void create_badguys(Room * visit_map)
+void create_badguys(Room * visit_map, int number)
 {
 	num_badguys=0;
-	for (int i = 0; i < 6; i++) {
+	for (int i = 0; i < number; i++) {
 		int row = rand() % NBLOCKSH;
 		int ypos = row*BLOCK_H+1;
 
@@ -1109,13 +1110,24 @@ void draw_player(int rowp, int colp)
 	prevcolp = colp;
 }
 
-Room * init_level(int num, int * ypos) 
+Room * init_level(int level, int * ypos) 
 {
 	wallbitset = (int *) calloc(240*160/sizeof(int) + 1, sizeof(int));
-	Room * visit_map = calc_maze(num*4, ypos);
+	Room * visit_map = calc_maze(level*4, ypos);
 	knock_out_walls(visit_map);
 	create_portals(visit_map);
-	create_badguys(visit_map);
+	int numbadguys;
+	if (level==1) {
+		numbadguys=5;
+	} else if (level==2) {
+		numbadguys=6;
+	} else if (level==3) {
+		numbadguys=7;
+	} else {
+		numbadguys=4+level;
+	}
+
+	create_badguys(visit_map,numbadguys);
 	level_score = 100;
 
 	return visit_map;
@@ -1184,6 +1196,11 @@ int main(void)
 	char timer_s[10];
 	sprintf(timer_s,"%d", level_score);
 	draw_string2(19*8,35*6,timer_s);
+	if (level==1 || level==2) {
+		numhuggers = 2;
+	} else {
+		numhuggers = 3; //number of badguys who hug wall
+	}
 
 	//EDTLOOP!
 	while(1) {
@@ -1203,7 +1220,7 @@ int main(void)
 
 		if (key_hit(KEY_B) )  {
 			Room * jmp_to = portal_jump(map_from_pix_to_room(visit_map,ypos,xpos));
-			DEBUG_PRINT("B pressed\n\n");
+			//DEBUG_PRINT("B pressed\n\n");
 
 			if (jmp_to != NULL) {
 				ypos = (jmp_to->row)*BLOCK_H+1;		
@@ -1221,7 +1238,7 @@ int main(void)
 
 		//while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 
-		move_badguys(ypos,xpos);
+		move_badguys(ypos,xpos,numhuggers);
 
 		if ((dx != 0) || (dy != 0)) {
 			if (is_legal_position(ypos+dy,xpos+dx,4,4)) {
@@ -1238,7 +1255,7 @@ int main(void)
 				ypos += dy;
 			} else {
 				draw_player(ypos,xpos);
-				DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
+				//DEBUG_PRINTF("illegal position! y: %d, x: %d\n\n",ypos+dy, xpos+dx);
 			}
 		} else {
 			draw_player(ypos,xpos);
@@ -1303,8 +1320,11 @@ int main(void)
 				sprintf(victory,"SCORE: %d", total_score);
 				draw_string2(1*8,0,"press 'A' to continue to the next level.");
 				draw_string2(3*8,0, victory);
-
+				if (level+1==3) {
+					numhuggers=3;
+				}
 				visit_map = init_level(++level, &ypos);
+				
 				while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 				draw_image_3(0,0,240,160,splashnotext);
 				draw_maze(visit_map,level);
@@ -1346,14 +1366,14 @@ void test()
 	for (int r = 0; r < SCREEN_HEIGHT; r++)  {
 		for (int c = 0; c < SCREEN_WIDTH; c++) {
 			if (is_occupied(r,c)) {
-				DEBUG_PRINTF("failing at %d, %d \n\n",r,c);
+				//DEBUG_PRINTF("failing at %d, %d \n\n",r,c);
 				found = 1;
 			}
 		}
 	}
 
 	if (found == 0) {
-		DEBUG_PRINT("none occupied!\n\n");
+		//DEBUG_PRINT("none occupied!\n\n");
 	}
 }
 //////////////////////////////////
