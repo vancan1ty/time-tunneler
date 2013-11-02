@@ -197,7 +197,7 @@ int get_next_room (Room ** rooms,
 		int current_room_index, 
 		Room * visit_map);
 
-void draw_maze(Room * visit_map);
+void draw_maze(Room * visit_map, int level);
 void draw_player(int rowp, int colp);
 bool special_rooms_contains(int roomindex);
 //////////////////////////////////
@@ -233,7 +233,7 @@ void set_rect_occupied(int r, int c, int width, int height)
 	}
 }
 
-bool is_legal_position(int ypos, int xpos, int height, int width)
+inline bool is_legal_position(int ypos, int xpos, int height, int width)
 {
 	//check four corners, and every other pixel along sides
 	//will have to change this if I expand characters
@@ -666,7 +666,8 @@ void move_badguys(int player_y, int player_x)
 	/////////////////////////////////////////////MAZE SETUP
 	void create_badguys(Room * visit_map)
 	{
-		for (int i = 0; i < 6; i++) {
+		num_badguys=0;
+		for (int i = 0; i < 4; i++) {
 			int row = rand() % NBLOCKSH;
 			int ypos = row*BLOCK_H+1;
 
@@ -705,7 +706,7 @@ void move_badguys(int player_y, int player_x)
 		}
 	}
 
-	void draw_maze(Room * visit_map) 
+	void draw_maze(Room * visit_map, int level) 
 	{
 		for (int i = 0; i < NBLOCKSW*NBLOCKSH; i++) {
 
@@ -719,6 +720,10 @@ void move_badguys(int player_y, int player_x)
 			draw_Room(room);
 			//	vid_vsync();
 		}
+
+		char levelstring[25];
+		sprintf(levelstring,"level %d/3",level);
+		draw_string2(19*8,0,levelstring);
 	}
 
 
@@ -1095,7 +1100,8 @@ void move_badguys(int player_y, int player_x)
 		knock_out_walls(visit_map);
 		create_portals(visit_map);
 		create_badguys(visit_map);
-		return visit_map;
+
+				return visit_map;
 	}
 
 	bool check_for_victory(Room * final_room, int player_x, int player_y)
@@ -1150,7 +1156,7 @@ void move_badguys(int player_y, int player_x)
 		while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 
 		draw_image_3(0,0,240,160,splashnotext);
-		draw_maze(visit_map);
+		draw_maze(visit_map,level);
 
 		//	dma_transfer(3, videoBuffer, maze_back, 384000 | DMA_ENABLE);
 
@@ -1223,7 +1229,7 @@ void move_badguys(int player_y, int player_x)
 				while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 
 				draw_image_3(0,0,240,160,splashnotext);
-				draw_maze(visit_map);
+				draw_maze(visit_map,level);
 				draw_player(ypos,xpos);
 			} else if (check_for_victory(special_rooms[1], xpos, ypos)) {
 				free(visit_map);
@@ -1232,23 +1238,43 @@ void move_badguys(int player_y, int player_x)
 				num_special_rooms = 0;
 				numportals = 0;
 				xpos=1;
-				visit_map = init_level(++level, &ypos);
-				draw_image_3(0,0,240,160,splashnotext);
-				char victory[20];
-				sprintf(victory,"You beat level %d!", level-1);
-				draw_string2(0,0, victory);
-				draw_string2(8,0,"press 'A' to continue to the next level.");
-				while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
-				draw_image_3(0,0,240,160,splashnotext);
-				draw_maze(visit_map);
-				draw_player(ypos,xpos);
-			} else if (key_hit(KEY_SELECT)) {
+				if (level==3) {// then you win the game
+					draw_image_3(0,0,240,160,splashnotext);
+				free(visit_map);
 				free(wallbitset);
 				num_badguys = 0;
 				num_special_rooms = 0;
 				numportals = 0;
 				xpos=1;
-				visit_map = init_level(1, &ypos);
+//				visit_map = init_level(1, &ypos);
+				draw_image_3(0,0,240,160,splashnotext);
+				char victory[20];
+				sprintf(victory,"You beat level %d, and won the game!", level);
+				level=1;
+				draw_string2(0,0, victory);
+				draw_string2(8,0,"press 'A' to go again.");
+				while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
+				return main();
+				} else {
+					visit_map = init_level(++level, &ypos);
+					draw_image_3(0,0,240,160,splashnotext);
+					char victory[20];
+					sprintf(victory,"You beat level %d!", level-1);
+					draw_string2(0,0, victory);
+					draw_string2(8,0,"press 'A' to continue to the next level.");
+					while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
+					draw_image_3(0,0,240,160,splashnotext);
+					draw_maze(visit_map,level);
+					draw_player(ypos,xpos);
+				}
+			} else if (key_hit(KEY_SELECT)) {
+				free(visit_map);
+				free(wallbitset);
+				num_badguys = 0;
+				num_special_rooms = 0;
+				numportals = 0;
+				xpos=1;
+//				visit_map = init_level(1, &ypos);
 				draw_image_3(0,0,240,160,splashnotext);
 				char victory[20];
 				sprintf(victory,"resetting game... %d...", level);
@@ -1257,9 +1283,11 @@ void move_badguys(int player_y, int player_x)
 				draw_string2(8,0,"press 'A' to go again.");
 				while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 
-				draw_image_3(0,0,240,160,splashnotext);
-				draw_maze(visit_map);
-				draw_player(ypos,xpos);
+				return main();
+
+//				draw_image_3(0,0,240,160,splashnotext);
+//				draw_maze(visit_map);
+//				draw_player(ypos,xpos);
 			}
 		}
 		return 0;
