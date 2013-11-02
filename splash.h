@@ -1,3 +1,4 @@
+//Currell Berry. Splash screen image.
 #ifndef SPLASH_BITMAP_H
 #define SPLASH_BITMAP_H
 extern const unsigned short splash[38400];

@@ -1,3 +1,4 @@
+//Currell Berry.  Font file I use for this homework.
 #include"mylib.h"
 
 const u16 fontdata2_6x8[12288] = {

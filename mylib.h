@@ -1,4 +1,5 @@
-/****** Currell Berry CS 2110 HW8 header file ******/
+/****** Currell Berry CS 2110 HW8/HW9 header file ******/
+//...I should probably move some things out of main.c into here ;)...
 
 #ifndef MYLIBH
 #define MYLIBH
@@ -66,7 +67,7 @@ INLINE void key_poll()
 {
 	__key_prev= __key_curr;
 	__key_curr= ~REG_KEYINPUT & KEY_MASK; //inverting REG_KEYINPUT 
-					      //to deal with active low
+	//to deal with active low
 }
 
 // Basic state checks
@@ -149,9 +150,9 @@ typedef struct
 /* general dma transfer function.*/
 INLINE void dma_transfer(int channel, void * src, void * dst, u32 cnt) 
 {
-        DMA[channel].cnt = 0;
-        DMA[channel].src = src;
-        DMA[channel].dst = dst;
+	DMA[channel].cnt = 0;
+	DMA[channel].src = src;
+	DMA[channel].dst = dst;
 	DMA[channel].cnt = cnt;		
 }
 

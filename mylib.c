@@ -12,8 +12,8 @@ u16 __key_curr;
 
 void vid_vsync()
 {
-    while(REG_VCOUNT >= 160);   // wait till VDraw
-    while(REG_VCOUNT < 160);    // wait till VBlank
+	while(REG_VCOUNT >= 160);   // wait till VDraw
+	while(REG_VCOUNT < 160);    // wait till VBlank
 }
 
 /* below functions assume that
@@ -36,11 +36,11 @@ void drawRect(int r, int c, int width, int height, COLOR color)
 
 	}
 
-//	for (int i=r; i < r+height; i++) {
-//		for (int i2=c; i2 < c+width; i2++) {
-//			setPixel(i,i2,color);
-//		}
-//	}
+	//	for (int i=r; i < r+height; i++) {
+	//		for (int i2=c; i2 < c+width; i2++) {
+	//			setPixel(i,i2,color);
+	//		}
+	//	}
 }
 
 void drawHollowRect(int r, int c, int width, int height, COLOR color) 
@@ -69,9 +69,9 @@ void drawHollowRect(int r, int c, int width, int height, COLOR color)
 void clearScreen() 
 {
 	u16 black = BLACK;
-        DMA[3].src = &black;
-        DMA[3].dst = videoBuffer;
-        DMA[3].cnt = (240*160) | DMA_ENABLE | DMA_SOURCE_FIXED;
+	DMA[3].src = &black;
+	DMA[3].dst = videoBuffer;
+	DMA[3].cnt = (240*160) | DMA_ENABLE | DMA_SOURCE_FIXED;
 }
 
 /* draw_image_3
@@ -91,8 +91,6 @@ void draw_image_3(int r, int c, int width, int height, const u16* image)
 		DMA[3].cnt = (width) | DMA_ENABLE;
 	}
 }
-
-
 
 /***************************** DEBUGGING *****************************/
 void pixelDebug(int row, int num) 
