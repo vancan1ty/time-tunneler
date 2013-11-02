@@ -289,6 +289,12 @@ typedef struct DXDY
 	int dx;
 	int dy;
 } dxdy;
+typedef struct Point
+{
+	int x;
+	int y;
+} Point;
+
 typedef struct BadGuy
 {
 	int prevxpos;
@@ -297,7 +303,8 @@ typedef struct BadGuy
 	int ypos;
 	int facing;	
 	bool made_contact;
-	bool in_contact;
+	Point contact_pos;
+	int angular_sum;
 } BadGuy;
 void draw_BadGuy(BadGuy badguy)
 {
@@ -306,7 +313,8 @@ void draw_BadGuy(BadGuy badguy)
 }
 BadGuy new_BadGuy(int ypos, int xpos)
 {
-	BadGuy b = {xpos,ypos,xpos,ypos,ABOVE,0,0};
+	Point p = {0,0};
+	BadGuy b = {xpos,ypos,xpos,ypos,ABOVE,0,p,0};
 	return b;
 }
 int abs(int val) 
@@ -329,12 +337,6 @@ int num_badguys = 0;
 RoomVector get_open_rooms(int row, 
 		int col, 
 		Room * visit_map); 
-
-typedef struct Point
-{
-	int x;
-	int y;
-} Point;
 
 int posmod(int n, int base) 
 {
@@ -399,6 +401,25 @@ bool is_boundary_in_contact(BadGuy * b)
 	return 0;
 }
 
+char * badguy_to_string(BadGuy * b)
+{
+	char * out = malloc(100*sizeof(char));
+	sprintf(out,"xpos %d, ypos %d, prevx %d, prevy %d, made_contact %d, facing %d\
+	\ncontact_x %d, contact_y %d, angular_sum %d",
+	b->xpos,b->ypos,b->prevxpos,b->prevypos,b->made_contact,b->facing,
+	b->contact_pos.x,b->contact_pos.y,b->angular_sum);
+	return out;
+}
+
+bool is_within_num_pixels(int num, int x1, int y1, int x2, int y2)
+{
+	if ((abs (x1-x2) <= num ) && (abs(y1-y2) <= num)) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 void move_badguys(int player_y, int player_x) 
 {
 	for (int i = 0; i < num_badguys; i++) {
@@ -410,18 +431,42 @@ void move_badguys(int player_y, int player_x)
 		b->prevxpos = b->xpos;
 		b->prevypos = b->ypos;
 
-		if((i % 2) == 0) { //stay right
+		if(i==2) { //hug right wall. would like to have more like this,
+			       //but have performance trouble.
 			if (!(b->made_contact)) {
-				if (is_occupied(b->ypos-1,b->xpos)) {
-					b->facing = LEFT;
-					draw_BadGuy(*b);
-					b->made_contact = 1;
-					b->in_contact = 1;
-				} else {
-					b->ypos-=1;
-					draw_BadGuy(*b);
+				DEBUG_PRINT("making contact yadayada\n");
+				if (b->contact_pos.x==0) { //continue in same direction till wall
+					int dx = (b->facing == LEFT) ?  -1 : b->facing % 2; 
+					int dy = (b->facing == ABOVE) ?  -1 : (b->facing+1) % 2; 
+					if (!is_legal_position(b->ypos+dy,b->xpos+dx,4,4)) {
+
+						int ndirection = posmod(b->facing-1,4);
+						b->facing = ndirection;
+						draw_BadGuy(*b);
+						b->made_contact = 1;
+						b->angular_sum=360;
+						Point p = {b->xpos,b->ypos};
+						b->contact_pos = p;
+					} else {
+						b->xpos+=dx;
+						b->ypos+=dy;
+						draw_BadGuy(*b);
+					} 
+				} else { //choose a direction and start going
+						int ndirection = rand() % 4;
+						b->facing = ndirection;
+						b->contact_pos.x=0;
+
 				}
 			} else {
+				if (b->angular_sum==0 &&
+					is_within_num_pixels(2, b->xpos, b->ypos, b->contact_pos.x, 
+											b->contact_pos.y)) { 
+					//then we are trapped in a loop and must escape
+					b->made_contact=0;
+					continue;
+				}
+
 				if (!is_boundary_in_contact(b)) {
 				//then turn right and continue.	
 					int ndirection = (b->facing + 1)%4;
@@ -430,7 +475,11 @@ void move_badguys(int player_y, int player_x)
 					int ndy = (ndirection == ABOVE) ? -1 : ((ndirection+1) % 2); 
 					b->ypos += ndy;
 					b->xpos += ndx;
-					DEBUG_PRINTF("b not in contact!.  facing: %d.  ndirection: %d, ndx %d, ndy %d \n",b->facing,ndirection,ndx,ndy);
+					b->angular_sum = (b->angular_sum + 90) % 360;
+
+					char * info = badguy_to_string(b);
+					DEBUG_PRINTF("b not in contact!...\n %s \n",info);
+					free(info);
 					b->facing = ndirection;
 					draw_BadGuy(*b);
 				} else {
@@ -440,19 +489,23 @@ void move_badguys(int player_y, int player_x)
 					dy = (b->facing == ABOVE) ?  -1 : (b->facing+1) % 2; 
 
 
-					if (is_occupied(b->ypos+dy, b->xpos+dx)) {//then we must turn left
+					if (!is_legal_position(b->ypos+dy, b->xpos+dx,4,4)) {//then we must turn left
 
 						int ndirection = posmod(b->facing-1,4);
 
-					DEBUG_PRINTF("turning left!.  facing: %d.  ndirection: %d, dx: %d, dy: %d\n",b->facing,ndirection,dx,dy);
+					char * info = badguy_to_string(b);
+					DEBUG_PRINTF("turning left!...\n %s\n", info);
+					free(info);
 						b->facing = ndirection;
+						b->angular_sum = posmod((b->angular_sum-90),360);
 						draw_BadGuy(*b);
 						continue;
 					} else { //we can proceed in same dir.
 						b->xpos +=dx;
 						b->ypos +=dy; 
-					DEBUG_PRINTF("proceeding!.  facing: %d.  dx: %d, dy: %d\n",b->facing,dx,dy);
-						b->in_contact = 1;
+						char * info = badguy_to_string(b);
+					DEBUG_PRINTF("proceeding!...\n %s\n",info);
+					free (info);
 						draw_BadGuy(*b);
 					}
 				}
@@ -1128,7 +1181,7 @@ void move_badguys(int player_y, int player_x)
 				draw_cell(*special_rooms[i]);
 			}
 			
-			while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
+			//while(!KEY_DOWN_NOW(KEY_A)); //wait till A pressed
 
 			move_badguys(ypos,xpos);
 
